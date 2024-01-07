@@ -1,0 +1,61 @@
+{
+  "Files": [
+    {
+      "Id": "/home/mrunal/Source_Code/WASM/bin/Release/net8.0/wwwroot/_framework/blazor.webassembly.js",
+      "PackagePath": "staticwebassets/_framework/blazor.webassembly.js"
+    },
+    {
+      "Id": "/home/mrunal/Source_Code/WASM/obj/Release/net8.0/compressed/03xo52deff.gz",
+      "PackagePath": "staticwebassets/_framework/blazor.webassembly.js.gz"
+    },
+    {
+      "Id": "/home/mrunal/Source_Code/WASM/obj/Release/net8.0/scopedcss/bundle/WASM.styles.css",
+      "PackagePath": "staticwebassets/WASM.styles.css"
+    },
+    {
+      "Id": "/home/mrunal/Source_Code/WASM/wwwroot/css/app.css",
+      "PackagePath": "staticwebassets/css/app.css"
+    },
+    {
+      "Id": "/home/mrunal/Source_Code/WASM/wwwroot/css/bootstrap/bootstrap.min.css",
+      "PackagePath": "staticwebassets/css/bootstrap/bootstrap.min.css"
+    },
+    {
+      "Id": "/home/mrunal/Source_Code/WASM/wwwroot/css/bootstrap/bootstrap.min.css.map",
+      "PackagePath": "staticwebassets/css/bootstrap/bootstrap.min.css.map"
+    },
+    {
+      "Id": "/home/mrunal/Source_Code/WASM/wwwroot/favicon.png",
+      "PackagePath": "staticwebassets/favicon.png"
+    },
+    {
+      "Id": "/home/mrunal/Source_Code/WASM/wwwroot/icon-192.png",
+      "PackagePath": "staticwebassets/icon-192.png"
+    },
+    {
+      "Id": "/home/mrunal/Source_Code/WASM/wwwroot/index.html",
+      "PackagePath": "staticwebassets/index.html"
+    },
+    {
+      "Id": "/home/mrunal/Source_Code/WASM/wwwroot/sample-data/weather.json",
+      "PackagePath": "staticwebassets/sample-data/weather.json"
+    },
+    {
+      "Id": "obj/Release/net8.0/staticwebassets/msbuild.WASM.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj/Release/net8.0/staticwebassets/msbuild.build.WASM.props",
+      "PackagePath": "build\\WASM.props"
+    },
+    {
+      "Id": "obj/Release/net8.0/staticwebassets/msbuild.buildMultiTargeting.WASM.props",
+      "PackagePath": "buildMultiTargeting\\WASM.props"
+    },
+    {
+      "Id": "obj/Release/net8.0/staticwebassets/msbuild.buildTransitive.WASM.props",
+      "PackagePath": "buildTransitive\\WASM.props"
+    }
+  ],
+  "ElementsToRemove": []
+}
