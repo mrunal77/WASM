@@ -1029,3 +1029,4 @@
 /home/mrunal/Source_Code/WASM/obj/Release/net8.0/refint/WASM.dll
 /home/mrunal/Source_Code/WASM/obj/Release/net8.0/WASM.pdb
 /home/mrunal/Source_Code/WASM/obj/Release/net8.0/ref/WASM.dll
+/home/mrunal/Source_Code/WASM/obj/Release/net8.0/WASM.sourcelink.json

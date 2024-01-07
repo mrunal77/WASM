@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WASM")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+93979ea87ffe81f9620f8f09d9c7697589f3b82f")]
 [assembly: System.Reflection.AssemblyProductAttribute("WASM")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WASM")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
