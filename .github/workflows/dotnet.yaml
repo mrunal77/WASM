@@ -19,8 +19,8 @@ jobs:
       run: dotnet publish WASM.csproj -c Release -o release --nologo
     
  
-    - name: Change base-tag in index.html from / to BlazorGitHubPagesDemo
-      run: sed -i 's/<base href="\/" \/>/<base href="\/BlazorGitHubPagesDemo\/" \/>/g' release/wwwroot/index.html
+    - name: Change base-tag in index.html from / to WASM
+      run: sed -i 's/<base href="\/" \/>/<base href="\/WASM\/" \/>/g' release/wwwroot/index.html
     
  
     - name: copy index.html to 404.html
