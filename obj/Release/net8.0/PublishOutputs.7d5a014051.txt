@@ -1,1 +1,0 @@
-/home/mrunal/Source_Code/WASM/bin/Release/net8.0/publish/web.config
