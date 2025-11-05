@@ -14,6 +14,10 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 9.0.x
+
+    # Install dotnet wasm buildtools workload
+    - name: Install .NET WASM Build Tools
+      run: dotnet workload install wasm-tools
         
     - name: Publish .NET Core Project
       run: dotnet publish WASM.csproj -c Release -o release --nologo
@@ -22,7 +26,6 @@ jobs:
     - name: Change base-tag in index.html from / to WASM
       run: sed -i 's/<base href="\/" \/>/<base href="\/WASM\/" \/>/g' release/wwwroot/index.html
     
- 
     - name: copy index.html to 404.html
       run: cp release/wwwroot/index.html release/wwwroot/404.html
 
