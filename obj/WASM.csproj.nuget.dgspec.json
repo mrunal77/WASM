@@ -1,30 +1,37 @@
 {
   "format": 1,
   "restore": {
-    "/home/mrunal/Source_Code/WASM/WASM.csproj": {}
+    "C:\\Users\\mtmes\\source\\repos\\mrunal77\\WASM_SourceCode\\WASM.csproj": {}
   },
   "projects": {
-    "/home/mrunal/Source_Code/WASM/WASM.csproj": {
+    "C:\\Users\\mtmes\\source\\repos\\mrunal77\\WASM_SourceCode\\WASM.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/mrunal/Source_Code/WASM/WASM.csproj",
+        "projectUniqueName": "C:\\Users\\mtmes\\source\\repos\\mrunal77\\WASM_SourceCode\\WASM.csproj",
         "projectName": "WASM",
-        "projectPath": "/home/mrunal/Source_Code/WASM/WASM.csproj",
-        "packagesPath": "/home/mrunal/.nuget/packages/",
-        "outputPath": "/home/mrunal/Source_Code/WASM/obj/",
+        "projectPath": "C:\\Users\\mtmes\\source\\repos\\mrunal77\\WASM_SourceCode\\WASM.csproj",
+        "packagesPath": "C:\\Users\\mtmes\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\mtmes\\source\\repos\\mrunal77\\WASM_SourceCode\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "/home/mrunal/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\mtmes\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
-          "net8.0"
+          "net9.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net8.0": {
-            "targetAlias": "net8.0",
+          "net9.0": {
+            "targetAlias": "net9.0",
             "projectReferences": {}
           }
         },
@@ -32,31 +39,41 @@
           "warnAsError": [
             "NU1605"
           ]
-        }
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
-        "net8.0": {
-          "targetAlias": "net8.0",
+        "net9.0": {
+          "targetAlias": "net9.0",
           "dependencies": {
             "Microsoft.AspNetCore.Components.WebAssembly": {
               "target": "Package",
-              "version": "[8.0.0, )"
+              "version": "[9.0.10, )"
             },
             "Microsoft.AspNetCore.Components.WebAssembly.DevServer": {
               "suppressParent": "All",
               "target": "Package",
-              "version": "[8.0.0, )"
+              "version": "[9.0.10, )"
+            },
+            "Microsoft.FluentUI.AspNetCore.Components.Icons": {
+              "target": "Package",
+              "version": "[4.13.1, )"
             },
             "Microsoft.NET.ILLink.Tasks": {
               "suppressParent": "All",
               "target": "Package",
-              "version": "[8.0.0, )",
+              "version": "[9.0.10, )",
               "autoReferenced": true
             },
             "Microsoft.NET.Sdk.WebAssembly.Pack": {
               "suppressParent": "All",
               "target": "Package",
-              "version": "[8.0.0, )",
+              "version": "[9.0.10, )",
               "autoReferenced": true
             }
           },
@@ -74,7 +91,7 @@
           "downloadDependencies": [
             {
               "name": "Microsoft.NETCore.App.Runtime.Mono.browser-wasm",
-              "version": "[8.0.0, 8.0.0]"
+              "version": "[9.0.10, 9.0.10]"
             }
           ],
           "frameworkReferences": {
@@ -82,7 +99,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/8.0.100/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
         }
       },
       "runtimes": {

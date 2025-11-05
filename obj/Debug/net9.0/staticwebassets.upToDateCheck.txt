@@ -1,0 +1,14 @@
+wwwroot\css\app.css
+wwwroot\css\bootstrap\bootstrap.min.css
+wwwroot\css\bootstrap\bootstrap.min.css.map
+wwwroot\favicon.png
+wwwroot\icon-192.png
+wwwroot\index.html
+wwwroot\js\CalculatorDrag.js
+wwwroot\sample-data\weather.json
+C:\Users\mtmes\source\repos\mrunal77\WASM_SourceCode\wwwroot\css\app.css
+C:\Users\mtmes\source\repos\mrunal77\WASM_SourceCode\wwwroot\css\bootstrap\bootstrap.min.css
+C:\Users\mtmes\source\repos\mrunal77\WASM_SourceCode\wwwroot\css\bootstrap\bootstrap.min.css.map
+C:\Users\mtmes\source\repos\mrunal77\WASM_SourceCode\wwwroot\index.html
+C:\Users\mtmes\source\repos\mrunal77\WASM_SourceCode\wwwroot\js\CalculatorDrag.js
+C:\Users\mtmes\source\repos\mrunal77\WASM_SourceCode\wwwroot\sample-data\weather.json
