@@ -5,9 +5,11 @@
 @implements IAsyncDisposable
 
 <div class="calculator-container" @ref="calculatorRef" tabindex="0" aria-label="Calculator" role="region" @onkeydown="HandleKeyDown">
-    <div class="calculator-header">
+    <div class="calculator-header"
+         @onmousedown="StartDrag"
+         @ontouchstart="StartDrag">
         <span class="calculator-title">Calculator</span>
-        <button class="close-btn" @onclick="CloseCalculator" aria-label="Close Calculator">&times;</button>
+        @* <button class="close-btn" @onclick="CloseCalculator" aria-label="Close Calculator">&times;</button> *@
     </div>
     <div class="calculator-display" role="status" aria-live="polite">@DisplayValue</div>
     <div class="calculator-buttons" role="group" aria-label="Calculator buttons">
@@ -32,7 +34,10 @@
 @code {
     private ElementReference calculatorRef;
     private IJSObjectReference dragModule;
-
+    private DotNetObjectReference<Calculator> dotNetRef;
+    private bool isDragging = false;
+    private double startX, startY;
+    private double initialLeft = 45, initialTop = 20;
     private string input = "";
     private string lastOperator = "";
     private decimal? accumulator = null;
@@ -61,8 +66,9 @@
     {
         if (firstRender)
         {
-            dragModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/calculatorDrag.js");
-            await dragModule.InvokeVoidAsync("enableDrag", calculatorRef);
+            dotNetRef = DotNetObjectReference.Create(this);
+            dragModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/CalculatorDrag.cs.js");
+            await dragModule.InvokeVoidAsync("enableCSDrag", calculatorRef, dotNetRef);
             await calculatorRef.FocusAsync();
         }
     }
@@ -73,7 +79,7 @@
         {
             try
             {
-                await dragModule.InvokeVoidAsync("disableDrag", calculatorRef);
+                await dragModule.InvokeVoidAsync("disableCSDrag");
                 await dragModule.DisposeAsync();
             }
             catch (JSDisconnectedException)
@@ -81,6 +87,83 @@
                 // Ignore if circuit is disconnected (Blazor Server)
             }
         }
+        dotNetRef?.Dispose();
+    }
+
+    private async Task StartDrag(MouseEventArgs e)
+    {
+        isDragging = true;
+        startX = e.ClientX;
+        startY = e.ClientY;
+        
+        // Get current position from CSS using JavaScript
+        var rect = await dragModule.InvokeAsync<ClientRect>("getElementRect", calculatorRef);
+        initialLeft = rect.Left;
+        initialTop = rect.Top;
+        
+        await dragModule.InvokeVoidAsync("setDragging", true);
+    }
+
+    private async Task StartDrag(TouchEventArgs e)
+    {
+        if (e.Touches.Length != 1) return;
+        
+        isDragging = true;
+        startX = e.Touches[0].ClientX;
+        startY = e.Touches[0].ClientY;
+        
+        var rect = await dragModule.InvokeAsync<ClientRect>("getElementRect", calculatorRef);
+        initialLeft = rect.Left;
+        initialTop = rect.Top;
+        
+        await dragModule.InvokeVoidAsync("setDragging", true);
+    }
+
+    [JSInvokable]
+    public async Task HandleMouseMove(double clientX, double clientY)
+    {
+        if (!isDragging) return;
+        
+        var dx = clientX - startX;
+        var dy = clientY - startY;
+        
+        var newLeft = initialLeft + dx;
+        var newTop = initialTop + dy;
+        
+        await UpdateCalculatorPosition(newLeft, newTop);
+    }
+
+    [JSInvokable]
+    public async Task HandleTouchMove(double clientX, double clientY)
+    {
+        if (!isDragging) return;
+        
+        var dx = clientX - startX;
+        var dy = clientY - startY;
+        
+        var newLeft = initialLeft + dx;
+        var newTop = initialTop + dy;
+        
+        await UpdateCalculatorPosition(newLeft, newTop);
+    }
+
+    private async Task UpdateCalculatorPosition(double left, double top)
+    {
+        await dragModule.InvokeVoidAsync("updateCalculatorPosition", calculatorRef, left, top);
+    }
+
+    [JSInvokable]
+    public void StopDrag()
+    {
+        isDragging = false;
+    }
+
+    private class ClientRect
+    {
+        public double Left { get; set; }
+        public double Top { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
     }
 
     private void OnButtonClick(string label)
