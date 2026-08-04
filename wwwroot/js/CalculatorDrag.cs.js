@@ -58,8 +58,13 @@ export function setDragging(dragging) {
 }
 
 export function updateCalculatorPosition(element, left, top) {
-    element.style.left = left + 'px';
-    element.style.top = top + 'px';
+    const rect = element.getBoundingClientRect();
+    const maxLeft = Math.max(window.innerWidth - rect.width, 0);
+    const maxTop = Math.max(window.innerHeight - rect.height, 0);
+    const clampedLeft = Math.min(Math.max(left, 0), maxLeft);
+    const clampedTop = Math.min(Math.max(top, 0), maxTop);
+    element.style.left = clampedLeft + 'px';
+    element.style.top = clampedTop + 'px';
 }
 
 export function getElementRect(element) {

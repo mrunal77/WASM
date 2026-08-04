@@ -1,6 +1,5 @@
 ﻿@page "/calculator"
 @using System.Globalization
-@* @rendermode "ServerPrerendered" *@
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -9,8 +8,21 @@
          @onmousedown="StartDrag"
          @ontouchstart="StartDrag">
         <span class="calculator-title">Calculator</span>
-        @* <button class="close-btn" @onclick="CloseCalculator" aria-label="Close Calculator">&times;</button> *@
     </div>
+
+    <div class="calculator-modes" role="tablist" aria-label="Calculator modes">
+        @foreach (var mode in Modes)
+        {
+            <button type="button"
+                    class="mode-btn @(calculatorMode == mode ? "active" : string.Empty)"
+                    @onclick="() => SetMode(mode)"
+                    role="tab"
+                    aria-selected="@(calculatorMode == mode)">
+                @mode
+            </button>
+        }
+    </div>
+
     <div class="calculator-display" role="status" aria-live="polite">@DisplayValue</div>
     <div class="calculator-buttons" role="group" aria-label="Calculator buttons">
         @foreach (var row in ButtonRows)
@@ -33,34 +45,50 @@
 
 @code {
     private ElementReference calculatorRef;
-    private IJSObjectReference dragModule;
-    private DotNetObjectReference<Calculator> dotNetRef;
+    private IJSObjectReference? dragModule;
+    private DotNetObjectReference<Calculator>? dotNetRef;
     private bool isDragging = false;
     private double startX, startY;
     private double initialLeft = 45, initialTop = 20;
-    private string input = "";
-    private string lastOperator = "";
+    private string input = string.Empty;
+    private string lastOperator = string.Empty;
     private decimal? accumulator = null;
     private bool isNewEntry = true;
-    private string errorMessage = null;
+    private string? errorMessage;
+    private string calculatorMode = "Standard";
 
-    private string DisplayValue => errorMessage ?? (input == "" ? (accumulator?.ToString("G", CultureInfo.InvariantCulture) ?? "0") : input);
+    private string DisplayValue => errorMessage ?? (input == string.Empty ? (accumulator?.ToString("G", CultureInfo.InvariantCulture) ?? "0") : input);
 
     private class CalculatorButton
     {
-        public string Label { get; set; }
-        public string AriaLabel { get; set; }
+        public string Label { get; set; } = string.Empty;
+        public string AriaLabel { get; set; } = string.Empty;
         public bool Disabled { get; set; }
     }
 
-    private List<List<CalculatorButton>> ButtonRows = new()
+    private static readonly string[] Modes = new[] { "Standard", "Scientific" };
+
+    private static readonly List<List<CalculatorButton>> StandardRows = new()
     {
+        new() { new() { Label = "CE", AriaLabel = "Clear entry" }, new() { Label = "C", AriaLabel = "Clear" }, new() { Label = "⌫", AriaLabel = "Backspace" }, new() { Label = "/", AriaLabel = "Divide" } },
+        new() { new() { Label = "7", AriaLabel = "Seven" }, new() { Label = "8", AriaLabel = "Eight" }, new() { Label = "9", AriaLabel = "Nine" }, new() { Label = "*", AriaLabel = "Multiply" } },
+        new() { new() { Label = "4", AriaLabel = "Four" }, new() { Label = "5", AriaLabel = "Five" }, new() { Label = "6", AriaLabel = "Six" }, new() { Label = "-", AriaLabel = "Subtract" } },
+        new() { new() { Label = "1", AriaLabel = "One" }, new() { Label = "2", AriaLabel = "Two" }, new() { Label = "3", AriaLabel = "Three" }, new() { Label = "+", AriaLabel = "Add" } },
+        new() { new() { Label = "±", AriaLabel = "Negate" }, new() { Label = "0", AriaLabel = "Zero" }, new() { Label = ".", AriaLabel = "Decimal point" }, new() { Label = "=", AriaLabel = "Equals" } }
+    };
+
+    private static readonly List<List<CalculatorButton>> ScientificRows = new()
+    {
+        new() { new() { Label = "sin", AriaLabel = "Sine" }, new() { Label = "cos", AriaLabel = "Cosine" }, new() { Label = "tan", AriaLabel = "Tangent" }, new() { Label = "√", AriaLabel = "Square root" } },
+        new() { new() { Label = "ln", AriaLabel = "Natural logarithm" }, new() { Label = "log", AriaLabel = "Log base 10" }, new() { Label = "x²", AriaLabel = "Square" }, new() { Label = "1/x", AriaLabel = "Reciprocal" } },
+        new() { new() { Label = "CE", AriaLabel = "Clear entry" }, new() { Label = "C", AriaLabel = "Clear" }, new() { Label = "⌫", AriaLabel = "Backspace" }, new() { Label = "x^y", AriaLabel = "Power" } },
         new() { new() { Label = "7", AriaLabel = "Seven" }, new() { Label = "8", AriaLabel = "Eight" }, new() { Label = "9", AriaLabel = "Nine" }, new() { Label = "/", AriaLabel = "Divide" } },
         new() { new() { Label = "4", AriaLabel = "Four" }, new() { Label = "5", AriaLabel = "Five" }, new() { Label = "6", AriaLabel = "Six" }, new() { Label = "*", AriaLabel = "Multiply" } },
         new() { new() { Label = "1", AriaLabel = "One" }, new() { Label = "2", AriaLabel = "Two" }, new() { Label = "3", AriaLabel = "Three" }, new() { Label = "-", AriaLabel = "Subtract" } },
-        new() { new() { Label = "0", AriaLabel = "Zero" }, new() { Label = ".", AriaLabel = "Decimal point" }, new() { Label = "=", AriaLabel = "Equals" }, new() { Label = "+", AriaLabel = "Add" } },
-        new() { new() { Label = "C", AriaLabel = "Clear" }, new() { Label = "⌫", AriaLabel = "Backspace" } }
+        new() { new() { Label = "%", AriaLabel = "Percent" }, new() { Label = "0", AriaLabel = "Zero" }, new() { Label = ".", AriaLabel = "Decimal point" }, new() { Label = "=", AriaLabel = "Equals" } }
     };
+
+    private IEnumerable<List<CalculatorButton>> ButtonRows => calculatorMode == "Scientific" ? ScientificRows : StandardRows;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -84,7 +112,7 @@
             }
             catch (JSDisconnectedException)
             {
-                // Ignore if circuit is disconnected (Blazor Server)
+                // Ignore if circuit is disconnected
             }
         }
         dotNetRef?.Dispose();
@@ -92,30 +120,31 @@
 
     private async Task StartDrag(MouseEventArgs e)
     {
+        if (dragModule is null) return;
+
         isDragging = true;
         startX = e.ClientX;
         startY = e.ClientY;
-        
-        // Get current position from CSS using JavaScript
+
         var rect = await dragModule.InvokeAsync<ClientRect>("getElementRect", calculatorRef);
         initialLeft = rect.Left;
         initialTop = rect.Top;
-        
+
         await dragModule.InvokeVoidAsync("setDragging", true);
     }
 
     private async Task StartDrag(TouchEventArgs e)
     {
-        if (e.Touches.Length != 1) return;
-        
+        if (dragModule is null || e.Touches.Length != 1) return;
+
         isDragging = true;
         startX = e.Touches[0].ClientX;
         startY = e.Touches[0].ClientY;
-        
+
         var rect = await dragModule.InvokeAsync<ClientRect>("getElementRect", calculatorRef);
         initialLeft = rect.Left;
         initialTop = rect.Top;
-        
+
         await dragModule.InvokeVoidAsync("setDragging", true);
     }
 
@@ -123,13 +152,13 @@
     public async Task HandleMouseMove(double clientX, double clientY)
     {
         if (!isDragging) return;
-        
+
         var dx = clientX - startX;
         var dy = clientY - startY;
-        
+
         var newLeft = initialLeft + dx;
         var newTop = initialTop + dy;
-        
+
         await UpdateCalculatorPosition(newLeft, newTop);
     }
 
@@ -137,18 +166,19 @@
     public async Task HandleTouchMove(double clientX, double clientY)
     {
         if (!isDragging) return;
-        
+
         var dx = clientX - startX;
         var dy = clientY - startY;
-        
+
         var newLeft = initialLeft + dx;
         var newTop = initialTop + dy;
-        
+
         await UpdateCalculatorPosition(newLeft, newTop);
     }
 
     private async Task UpdateCalculatorPosition(double left, double top)
     {
+        if (dragModule is null) return;
         await dragModule.InvokeVoidAsync("updateCalculatorPosition", calculatorRef, left, top);
     }
 
@@ -158,12 +188,15 @@
         isDragging = false;
     }
 
-    private class ClientRect
+    private void SetMode(string mode)
     {
-        public double Left { get; set; }
-        public double Top { get; set; }
-        public double Width { get; set; }
-        public double Height { get; set; }
+        if (calculatorMode == mode) return;
+        calculatorMode = mode;
+        input = string.Empty;
+        lastOperator = string.Empty;
+        accumulator = null;
+        errorMessage = null;
+        isNewEntry = true;
     }
 
     private void OnButtonClick(string label)
@@ -171,8 +204,8 @@
         if (errorMessage != null)
         {
             errorMessage = null;
-            input = "";
-            lastOperator = "";
+            input = string.Empty;
+            lastOperator = string.Empty;
             accumulator = null;
             isNewEntry = true;
         }
@@ -181,46 +214,130 @@
         {
             if (isNewEntry)
             {
-                input = "";
+                input = string.Empty;
                 isNewEntry = false;
             }
             if (label == "." && input.Contains(".")) return;
             input += label;
+            return;
         }
-        else if ("+-*/".Contains(label))
+
+        if (label == "C")
         {
-            CommitInput();
-            lastOperator = label;
-            isNewEntry = true;
-        }
-        else if (label == "=")
-        {
-            CommitInput();
-            lastOperator = "";
-            isNewEntry = true;
-        }
-        else if (label == "C")
-        {
-            input = "";
-            lastOperator = "";
+            input = string.Empty;
+            lastOperator = string.Empty;
             accumulator = null;
             errorMessage = null;
             isNewEntry = true;
+            return;
         }
-        else if (label == "⌫")
+
+        if (label == "CE")
+        {
+            input = string.Empty;
+            isNewEntry = true;
+            return;
+        }
+
+        if (label == "⌫")
         {
             if (!isNewEntry && input.Length > 0)
+            {
                 input = input.Substring(0, input.Length - 1);
+            }
+            return;
         }
+
+        if (label == "=")
+        {
+            CommitInput();
+            lastOperator = string.Empty;
+            isNewEntry = true;
+            return;
+        }
+
+        if (label == "+" || label == "-" || label == "*" || label == "/" || label == "x^y")
+        {
+            CommitInput();
+            lastOperator = label == "x^y" ? "^" : label;
+            isNewEntry = true;
+            return;
+        }
+
+        ApplyUnaryOperation(label);
+    }
+
+    private void ApplyUnaryOperation(string operation)
+    {
+        var value = GetCurrentValue();
+        if (value == null)
+        {
+            errorMessage = "Enter a number first.";
+            return;
+        }
+
+        try
+        {
+            var numericValue = (double)value.Value;
+            double result = operation switch
+            {
+                "±" => -numericValue,
+                "%" => numericValue / 100.0,
+                "√" => numericValue < 0 ? throw new InvalidOperationException("Cannot take square root of a negative number") : Math.Sqrt(numericValue),
+                "x²" => numericValue * numericValue,
+                "1/x" => numericValue == 0 ? throw new DivideByZeroException() : 1.0 / numericValue,
+                "sin" => Math.Sin(DegreesToRadians(numericValue)),
+                "cos" => Math.Cos(DegreesToRadians(numericValue)),
+                "tan" => Math.Tan(DegreesToRadians(numericValue)),
+                "ln" => numericValue <= 0 ? throw new InvalidOperationException("Natural log is undefined for zero or negative numbers") : Math.Log(numericValue),
+                "log" => numericValue <= 0 ? throw new InvalidOperationException("Logarithm is undefined for zero or negative numbers") : Math.Log10(numericValue),
+                _ => throw new InvalidOperationException("Unknown operation")
+            };
+
+            accumulator = (decimal)result;
+            input = accumulator.Value.ToString(CultureInfo.InvariantCulture);
+            isNewEntry = true;
+            lastOperator = string.Empty;
+        }
+        catch (DivideByZeroException)
+        {
+            errorMessage = "Cannot divide by zero";
+            accumulator = null;
+            input = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            accumulator = null;
+            input = string.Empty;
+        }
+    }
+
+    private double DegreesToRadians(double degrees) => degrees * Math.PI / 180.0;
+
+    private decimal? GetCurrentValue()
+    {
+        if (!string.IsNullOrEmpty(input) && decimal.TryParse(input, NumberStyles.Number, CultureInfo.InvariantCulture, out var value))
+        {
+            return value;
+        }
+
+        return accumulator;
     }
 
     private void CommitInput()
     {
-        if (!decimal.TryParse(input, System.Globalization.NumberStyles.Number, CultureInfo.InvariantCulture, out var value))
+        if (string.IsNullOrEmpty(input) && !accumulator.HasValue)
+        {
+            return;
+        }
+
+        if (!decimal.TryParse(input, NumberStyles.Number, CultureInfo.InvariantCulture, out var value))
         {
             errorMessage = "Invalid input";
             return;
         }
+
         if (accumulator == null)
         {
             accumulator = value;
@@ -235,6 +352,7 @@
                     "-" => accumulator - value,
                     "*" => accumulator * value,
                     "/" => value == 0 ? throw new DivideByZeroException() : accumulator / value,
+                    "^" => (decimal)Math.Pow((double)accumulator, (double)value),
                     _ => accumulator
                 };
             }
@@ -244,7 +362,8 @@
                 accumulator = null;
             }
         }
-        input = "";
+
+        input = string.Empty;
     }
 
     private void HandleKeyDown(KeyboardEventArgs e)
@@ -263,12 +382,18 @@
 
     private void CloseCalculator()
     {
-        // Optionally hide or remove the calculator from the UI
-        // For demo, just clear state
-        input = "";
-        lastOperator = "";
+        input = string.Empty;
+        lastOperator = string.Empty;
         accumulator = null;
         errorMessage = null;
         isNewEntry = true;
+    }
+
+    private class ClientRect
+    {
+        public double Left { get; set; }
+        public double Top { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
     }
 }
