@@ -1,7 +1,26 @@
 ﻿################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+# .gitignore for Blazor WebAssembly and Visual Studio
 ################################################################################
 
-/.vs
-/bin
-/obj
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+bin/
+obj/
+release/
+
+# Rider
+.idea/
+*.sln.iml
+
+# Publish output
+wwwroot/*.deploy.json
+
+# Misc
+*.log
+*.db

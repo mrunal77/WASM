@@ -1,24 +1,52 @@
-﻿@page "/weather"
+@page "/weather"
+@using System.Text.Json.Serialization
 @inject HttpClient Http
 
 <PageTitle>Weather</PageTitle>
 
-<h1>Weather</h1>
+<h1>Weather Forecast</h1>
 
-<p>This component demonstrates fetching data from the server.</p>
+<p>Live weather data fetched from the Open-Meteo API, a free open weather service with no API key required.</p>
 
-@if (forecasts == null)
+<div class="mb-3">
+    <label for="locationInput" class="form-label">City</label>
+    <input id="locationInput" class="form-control" @bind="locationName" @bind:event="oninput" placeholder="Try New York, London, or Tokyo" />
+</div>
+
+<button class="btn btn-primary mb-4" @onclick="LoadForecastAsync">Refresh forecast</button>
+
+@if (!string.IsNullOrEmpty(errorMessage))
 {
-    <p><em>Loading...</em></p>
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else if (forecasts == null)
+{
+    <p><em>Loading forecast...</em></p>
 }
 else
 {
-    <table class="table">
+    <div class="mb-4">
+        <strong>@displayName</strong>
+        <br />
+        @if (latitude.HasValue && longitude.HasValue)
+        {
+            <span>@latitude:F4, @longitude:F4</span>
+        }
+        <br />
+        @if (!string.IsNullOrEmpty(timezone))
+        {
+            <span>Timezone: @timezone</span>
+        }
+    </div>
+
+    <table class="table table-striped">
         <thead>
             <tr>
                 <th>Date</th>
-                <th>Temp. (C)</th>
-                <th>Temp. (F)</th>
+                <th>Low (°C)</th>
+                <th>High (°C)</th>
+                <th>Low (°F)</th>
+                <th>High (°F)</th>
                 <th>Summary</th>
             </tr>
         </thead>
@@ -26,9 +54,11 @@ else
             @foreach (var forecast in forecasts)
             {
                 <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
-                    <td>@forecast.TemperatureC</td>
-                    <td>@forecast.TemperatureF</td>
+                    <td>@forecast.Date.ToString("d")</td>
+                    <td>@forecast.MinTempC:F1</td>
+                    <td>@forecast.MaxTempC:F1</td>
+                    <td>@forecast.MinTempF</td>
+                    <td>@forecast.MaxTempF</td>
                     <td>@forecast.Summary</td>
                 </tr>
             }
@@ -37,21 +67,159 @@ else
 }
 
 @code {
+    private string locationName = "New York";
+    private string? displayName;
+    private double? latitude;
+    private double? longitude;
+    private string? timezone;
     private WeatherForecast[]? forecasts;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        forecasts = await Http.GetFromJsonAsync<WeatherForecast[]>("sample-data/weather.json");
+        await LoadForecastAsync();
+    }
+
+    private async Task LoadForecastAsync()
+    {
+        errorMessage = null;
+        forecasts = null;
+        displayName = null;
+        latitude = null;
+        longitude = null;
+        timezone = null;
+
+        try
+        {
+            var geocodeUrl = $"https://geocoding-api.open-meteo.com/v1/search?name={Uri.EscapeDataString(locationName)}&count=1";
+            var geocoding = await Http.GetFromJsonAsync<GeocodingResponse>(geocodeUrl);
+            var location = geocoding?.Results?.FirstOrDefault();
+
+            if (location == null)
+            {
+                errorMessage = $"Unable to find coordinates for \"{locationName}\". Try another city name.";
+                return;
+            }
+
+            displayName = location.NameWithCountry;
+            latitude = location.Latitude;
+            longitude = location.Longitude;
+
+            var forecastUrl = $"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto";
+            var weather = await Http.GetFromJsonAsync<WeatherApiResponse>(forecastUrl);
+
+            timezone = weather?.Timezone;
+
+            if (weather?.Daily?.Time == null || weather.Daily.Time.Length == 0)
+            {
+                errorMessage = "Weather service returned no forecast data.";
+                return;
+            }
+
+            forecasts = weather.Daily.Time
+                .Select((date, index) => new WeatherForecast
+                {
+                    Date = DateOnly.Parse(date),
+                    MaxTempC = weather.Daily.Temperature2mMax.ElementAtOrDefault(index),
+                    MinTempC = weather.Daily.Temperature2mMin.ElementAtOrDefault(index),
+                    Summary = MapWeatherCode(weather.Daily.Weathercode.ElementAtOrDefault(index))
+                })
+                .ToArray();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load weather forecast: {ex.Message}";
+        }
+    }
+
+    private static string MapWeatherCode(int code) => weatherCodes.TryGetValue(code, out var description) ? description : "Unknown";
+
+    private static readonly Dictionary<int, string> weatherCodes = new()
+    {
+        [0] = "Clear sky",
+        [1] = "Mainly clear",
+        [2] = "Partly cloudy",
+        [3] = "Overcast",
+        [45] = "Fog",
+        [48] = "Depositing rime fog",
+        [51] = "Light drizzle",
+        [53] = "Moderate drizzle",
+        [55] = "Dense drizzle",
+        [56] = "Freezing drizzle",
+        [57] = "Heavy freezing drizzle",
+        [61] = "Slight rain",
+        [63] = "Moderate rain",
+        [65] = "Heavy rain",
+        [66] = "Freezing rain",
+        [67] = "Heavy freezing rain",
+        [71] = "Slight snow fall",
+        [73] = "Moderate snow fall",
+        [75] = "Heavy snow fall",
+        [77] = "Snow grains",
+        [80] = "Slight rain showers",
+        [81] = "Moderate rain showers",
+        [82] = "Violent rain showers",
+        [85] = "Slight snow showers",
+        [86] = "Heavy snow showers",
+        [95] = "Thunderstorm",
+        [96] = "Thunderstorm with hail",
+        [99] = "Thunderstorm with heavy hail"
+    };
+
+    private class GeocodingResponse
+    {
+        [JsonPropertyName("results")]
+        public GeocodingResult[]? Results { get; set; }
+    }
+
+    private class GeocodingResult
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("country")]
+        public string? Country { get; set; }
+
+        [JsonPropertyName("latitude")]
+        public double Latitude { get; set; }
+
+        [JsonPropertyName("longitude")]
+        public double Longitude { get; set; }
+
+        public string NameWithCountry => string.IsNullOrWhiteSpace(Country) ? Name ?? "Unknown location" : $"{Name}, {Country}";
+    }
+
+    private class WeatherApiResponse
+    {
+        [JsonPropertyName("timezone")]
+        public string? Timezone { get; set; }
+
+        [JsonPropertyName("daily")]
+        public DailyForecast? Daily { get; set; }
+    }
+
+    private class DailyForecast
+    {
+        [JsonPropertyName("time")]
+        public string[]? Time { get; set; }
+
+        [JsonPropertyName("temperature_2m_max")]
+        public double[] Temperature2mMax { get; set; } = Array.Empty<double>();
+
+        [JsonPropertyName("temperature_2m_min")]
+        public double[] Temperature2mMin { get; set; } = Array.Empty<double>();
+
+        [JsonPropertyName("weathercode")]
+        public int[] Weathercode { get; set; } = Array.Empty<int>();
     }
 
     public class WeatherForecast
     {
         public DateOnly Date { get; set; }
-
-        public int TemperatureC { get; set; }
-
+        public double MinTempC { get; set; }
+        public double MaxTempC { get; set; }
         public string? Summary { get; set; }
-
-        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+        public int MinTempF => 32 + (int)(MinTempC / 0.5556);
+        public int MaxTempF => 32 + (int)(MaxTempC / 0.5556);
     }
 }
