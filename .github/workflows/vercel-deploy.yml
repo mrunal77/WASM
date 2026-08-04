@@ -1,0 +1,54 @@
+name: Vercel Deploy
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install .NET WASM Build Tools
+        run: dotnet workload install wasm-tools
+
+      - name: Publish .NET Project
+        run: dotnet publish WASM.csproj -c Release -p:PublishTrimmed=true -o release --nologo
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@28 || npm install -g vercel
+
+      # Note: The job requires you to set the following secrets in the repository:
+      # - VERCEL_TOKEN: your Vercel personal token
+      # - VERCEL_ORG_ID: (optional) your Vercel organization id
+      # - VERCEL_PROJECT_NAME: (optional) the Vercel project name to deploy to
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_NAME: ${{ secrets.VERCEL_PROJECT_NAME }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "VERCEL_TOKEN is not set — skipping Vercel deploy. Add VERCEL_TOKEN as a repository secret to enable deploys.";
+            exit 0;
+          fi
+          DEPLOY_DIR=release/wwwroot
+          echo "Deploying $DEPLOY_DIR to Vercel..."
+          # If project name is provided, include it; org id is optional
+          NAME_ARG=""
+          ORG_ARG=""
+          if [ -n "$VERCEL_PROJECT_NAME" ]; then NAME_ARG="--name $VERCEL_PROJECT_NAME"; fi
+          if [ -n "$VERCEL_ORG_ID" ]; then ORG_ARG="--org $VERCEL_ORG_ID"; fi
+          # Deploy static output to Vercel
+          vercel $DEPLOY_DIR --prod --token "$VERCEL_TOKEN" --confirm $NAME_ARG $ORG_ARG
