@@ -1,11 +1,11 @@
-@page "/airquality"
+﻿@page "/airquality"
 @inject IJSRuntime JS
 @inject HttpClient Http
 
 <PageTitle>Air Quality</PageTitle>
 
 <h1>Air Quality</h1>
-<p>Shows nearby OpenAQ latest measurements (based on your browser location).</p>
+<p>Shows nearby air-quality readings (based on your browser location).</p>
 
 @if (!string.IsNullOrEmpty(error))
 {
@@ -19,7 +19,7 @@ else
 {
     <table class="table">
         <thead>
-            <tr><th>Parameter</th><th>Value</th><th>Unit</th><th>Last Updated</th></tr>
+            <tr><th>Parameter</th><th>Value</th><th>Unit</th><th>Last Updated (UTC)</th></tr>
         </thead>
         <tbody>
             @foreach (var m in measurements)
@@ -28,7 +28,7 @@ else
                     <td>@m.Parameter</td>
                     <td>@m.Value</td>
                     <td>@m.Unit</td>
-                    <td>@m.LastUpdated.ToLocalTime()</td>
+                    <td>@m.LastUpdated.ToString("u")</td>
                 </tr>
             }
         </tbody>
@@ -44,12 +44,41 @@ else
         try
         {
             var pos = await JS.InvokeAsync<BrowserLocation>("geoLocation.getCurrentPosition");
-            var lat = pos?.Latitude ?? 0;
-            var lon = pos?.Longitude ?? 0;
-            var url = $"https://api.openaq.org/v2/latest?coordinates={lat},{lon}&radius=10000&limit=10";
-            var resp = await Http.GetFromJsonAsync<OpenAQResponse>(url);
-            var results = resp?.Results?.FirstOrDefault();
-            measurements = results?.Measurements?.Select(x => new Measurement { Parameter = x.Parameter, Value = x.Value, Unit = x.Unit, LastUpdated = x.LastUpdated }).ToArray();
+            if (pos?.Latitude == null || pos?.Longitude == null)
+            {
+                error = "Could not determine your location. Please allow location access in the browser and reload the page.";
+                return;
+            }
+
+            var lat = pos.Latitude.Value;
+            var lon = pos.Longitude.Value;
+
+            // Use Open-Meteo's free air-quality API (no API key) instead of the retired OpenAQ v2 endpoints.
+            var url = $"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&hourly=pm10,pm2_5,carbon_monoxide&timezone=UTC";
+            var resp = await Http.GetFromJsonAsync<OpenMResp>(url);
+            if (resp?.hourly?.time == null || resp.hourly.time.Length == 0)
+            {
+                error = "No air-quality data available for your location.";
+                return;
+            }
+
+            var times = resp.hourly.time;
+            var idx = times.Length - 1; // latest hour
+            var lastTime = DateTime.Parse(times[idx], null, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal);
+
+            var pm10 = resp.hourly.pm10?[idx];
+            var pm25 = resp.hourly.pm2_5?[idx];
+            var co = resp.hourly.carbon_monoxide?[idx];
+
+            measurements = new[] {
+                new Measurement { Parameter = "PM2.5", Value = pm25 ?? double.NaN, Unit = resp.hourly_units?.pm2_5 ?? "µg/m³", LastUpdated = lastTime },
+                new Measurement { Parameter = "PM10", Value = pm10 ?? double.NaN, Unit = resp.hourly_units?.pm10 ?? "µg/m³", LastUpdated = lastTime },
+                new Measurement { Parameter = "CO", Value = co ?? double.NaN, Unit = resp.hourly_units?.carbon_monoxide ?? "µg/m³", LastUpdated = lastTime }
+            };
+        }
+        catch (JSException jsex)
+        {
+            error = jsex.Message;
         }
         catch (Exception ex)
         {
@@ -57,10 +86,29 @@ else
         }
     }
 
-    private class BrowserLocation { public double? Latitude {get;set;} public double? Longitude {get;set;} }
-    private class OpenAQResponse { public OpenAQResult[]? Results { get; set; } }
-    private class OpenAQResult { public OpenAQMeasurement[]? Measurements { get; set; } }
-    private class OpenAQMeasurement { public string? Parameter { get; set; } public double Value { get; set; } public string? Unit { get; set; } public DateTime LastUpdated { get; set; } }
+    private class BrowserLocation { public double? Latitude { get; set; } public double? Longitude { get; set; } }
+
+    private class OpenMResp
+    {
+        public HourlyUnits? hourly_units { get; set; }
+        public Hourly? hourly { get; set; }
+    }
+
+    private class HourlyUnits
+    {
+        public string? time { get; set; }
+        public string? pm10 { get; set; }
+        public string? pm2_5 { get; set; }
+        public string? carbon_monoxide { get; set; }
+    }
+
+    private class Hourly
+    {
+        public string[]? time { get; set; }
+        public double[]? pm10 { get; set; }
+        public double[]? pm2_5 { get; set; }
+        public double[]? carbon_monoxide { get; set; }
+    }
 
     private class Measurement { public string? Parameter { get; set; } public double Value { get; set; } public string? Unit { get; set; } public DateTime LastUpdated { get; set; } }
 }
