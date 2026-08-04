@@ -1,19 +1,23 @@
 @page "/weather"
 @using System.Text.Json.Serialization
 @inject HttpClient Http
+@inject IJSRuntime JS
 
 <PageTitle>Weather</PageTitle>
 
 <h1>Weather Forecast</h1>
 
-<p>Live weather data fetched from the Open-Meteo API, a free open weather service with no API key required.</p>
+<p>Live weather data fetched from the Open-Meteo API. The app attempts to use your browser&apos;s location first and falls back to a city search if needed.</p>
 
 <div class="mb-3">
     <label for="locationInput" class="form-label">City</label>
     <input id="locationInput" class="form-control" @bind="locationName" @bind:event="oninput" placeholder="Try New York, London, or Tokyo" />
 </div>
 
-<button class="btn btn-primary mb-4" @onclick="LoadForecastAsync">Refresh forecast</button>
+<div class="mb-3">
+    <button class="btn btn-secondary me-2" @onclick="UseCurrentLocationAsync" disabled="@isLoading">Use current location</button>
+    <button class="btn btn-primary" @onclick="() => LoadForecastAsync(forceCitySearch: true)" disabled="@isLoading">Search by city</button>
+</div>
 
 @if (!string.IsNullOrEmpty(errorMessage))
 {
@@ -21,7 +25,7 @@
 }
 else if (forecasts == null)
 {
-    <p><em>Loading forecast...</em></p>
+    <p><em>@(isLoading ? "Loading forecast..." : "Enter a city or use your current location.")</em></p>
 }
 else
 {
@@ -74,13 +78,20 @@ else
     private string? timezone;
     private WeatherForecast[]? forecasts;
     private string? errorMessage;
+    private bool isLoading;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadForecastAsync();
     }
 
-    private async Task LoadForecastAsync()
+    private async Task UseCurrentLocationAsync()
+    {
+        locationName = string.Empty;
+        await LoadForecastAsync(forceCitySearch: false);
+    }
+
+    private async Task LoadForecastAsync(bool forceCitySearch = false)
     {
         errorMessage = null;
         forecasts = null;
@@ -88,48 +99,106 @@ else
         latitude = null;
         longitude = null;
         timezone = null;
+        isLoading = true;
 
         try
         {
-            var geocodeUrl = $"https://geocoding-api.open-meteo.com/v1/search?name={Uri.EscapeDataString(locationName)}&count=1";
-            var geocoding = await Http.GetFromJsonAsync<GeocodingResponse>(geocodeUrl);
-            var location = geocoding?.Results?.FirstOrDefault();
-
-            if (location == null)
+            if (!forceCitySearch)
             {
-                errorMessage = $"Unable to find coordinates for \"{locationName}\". Try another city name.";
-                return;
-            }
-
-            displayName = location.NameWithCountry;
-            latitude = location.Latitude;
-            longitude = location.Longitude;
-
-            var forecastUrl = $"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto";
-            var weather = await Http.GetFromJsonAsync<WeatherApiResponse>(forecastUrl);
-
-            timezone = weather?.Timezone;
-
-            if (weather?.Daily?.Time == null || weather.Daily.Time.Length == 0)
-            {
-                errorMessage = "Weather service returned no forecast data.";
-                return;
-            }
-
-            forecasts = weather.Daily.Time
-                .Select((date, index) => new WeatherForecast
+                try
                 {
-                    Date = DateOnly.Parse(date),
-                    MaxTempC = weather.Daily.Temperature2mMax.ElementAtOrDefault(index),
-                    MinTempC = weather.Daily.Temperature2mMin.ElementAtOrDefault(index),
-                    Summary = MapWeatherCode(weather.Daily.Weathercode.ElementAtOrDefault(index))
-                })
-                .ToArray();
+                    await GetLocationFromBrowserAsync();
+                    displayName ??= "Current location";
+                }
+                catch (Exception ex)
+                {
+                    errorMessage = ex.Message;
+                }
+            }
+
+            if (!latitude.HasValue || !longitude.HasValue)
+            {
+                await GetLocationFromCityAsync();
+            }
+
+            if (!latitude.HasValue || !longitude.HasValue)
+            {
+                return;
+            }
+
+            await LoadWeatherForecastAsync();
         }
         catch (Exception ex)
         {
             errorMessage = $"Unable to load weather forecast: {ex.Message}";
         }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task GetLocationFromBrowserAsync()
+    {
+        var browserLocation = await JS.InvokeAsync<BrowserLocation>("geoLocation.getCurrentPosition");
+        latitude = browserLocation?.Latitude;
+        longitude = browserLocation?.Longitude;
+        displayName = "Current location";
+
+        if (!latitude.HasValue || !longitude.HasValue)
+        {
+            throw new InvalidOperationException("Could not determine your location from the browser.");
+        }
+    }
+
+    private async Task GetLocationFromCityAsync()
+    {
+        if (string.IsNullOrWhiteSpace(locationName))
+        {
+            if (string.IsNullOrEmpty(errorMessage))
+            {
+                errorMessage = "Please enter a city name or allow location access.";
+            }
+            return;
+        }
+
+        var geocodeUrl = $"https://geocoding-api.open-meteo.com/v1/search?name={Uri.EscapeDataString(locationName)}&count=1";
+        var geocoding = await Http.GetFromJsonAsync<GeocodingResponse>(geocodeUrl);
+        var location = geocoding?.Results?.FirstOrDefault();
+
+        if (location == null)
+        {
+            errorMessage = $"Unable to find coordinates for \"{locationName}\". Try another city name or use your current location.";
+            return;
+        }
+
+        displayName = location.NameWithCountry;
+        latitude = location.Latitude;
+        longitude = location.Longitude;
+    }
+
+    private async Task LoadWeatherForecastAsync()
+    {
+        var forecastUrl = $"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto";
+        var weather = await Http.GetFromJsonAsync<WeatherApiResponse>(forecastUrl);
+
+        timezone = weather?.Timezone;
+
+        if (weather?.Daily?.Time == null || weather.Daily.Time.Length == 0)
+        {
+            errorMessage = "Weather service returned no forecast data.";
+            return;
+        }
+
+        forecasts = weather.Daily.Time
+            .Select((date, index) => new WeatherForecast
+            {
+                Date = DateOnly.Parse(date),
+                MaxTempC = weather.Daily.Temperature2mMax.ElementAtOrDefault(index),
+                MinTempC = weather.Daily.Temperature2mMin.ElementAtOrDefault(index),
+                Summary = MapWeatherCode(weather.Daily.Weathercode.ElementAtOrDefault(index))
+            })
+            .ToArray();
     }
 
     private static string MapWeatherCode(int code) => weatherCodes.TryGetValue(code, out var description) ? description : "Unknown";
@@ -165,6 +234,15 @@ else
         [96] = "Thunderstorm with hail",
         [99] = "Thunderstorm with heavy hail"
     };
+
+    private class BrowserLocation
+    {
+        [JsonPropertyName("latitude")]
+        public double? Latitude { get; set; }
+
+        [JsonPropertyName("longitude")]
+        public double? Longitude { get; set; }
+    }
 
     private class GeocodingResponse
     {
