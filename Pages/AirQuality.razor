@@ -1,0 +1,66 @@
+@page "/airquality"
+@inject IJSRuntime JS
+@inject HttpClient Http
+
+<PageTitle>Air Quality</PageTitle>
+
+<h1>Air Quality</h1>
+<p>Shows nearby OpenAQ latest measurements (based on your browser location).</p>
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-danger">@error</div>
+}
+else if (measurements==null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr><th>Parameter</th><th>Value</th><th>Unit</th><th>Last Updated</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var m in measurements)
+            {
+                <tr>
+                    <td>@m.Parameter</td>
+                    <td>@m.Value</td>
+                    <td>@m.Unit</td>
+                    <td>@m.LastUpdated.ToLocalTime()</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private string? error;
+    private Measurement[]? measurements;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var pos = await JS.InvokeAsync<BrowserLocation>("geoLocation.getCurrentPosition");
+            var lat = pos?.Latitude ?? 0;
+            var lon = pos?.Longitude ?? 0;
+            var url = $"https://api.openaq.org/v2/latest?coordinates={lat},{lon}&radius=10000&limit=10";
+            var resp = await Http.GetFromJsonAsync<OpenAQResponse>(url);
+            var results = resp?.Results?.FirstOrDefault();
+            measurements = results?.Measurements?.Select(x => new Measurement { Parameter = x.Parameter, Value = x.Value, Unit = x.Unit, LastUpdated = x.LastUpdated }).ToArray();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private class BrowserLocation { public double? Latitude {get;set;} public double? Longitude {get;set;} }
+    private class OpenAQResponse { public OpenAQResult[]? Results { get; set; } }
+    private class OpenAQResult { public OpenAQMeasurement[]? Measurements { get; set; } }
+    private class OpenAQMeasurement { public string? Parameter { get; set; } public double Value { get; set; } public string? Unit { get; set; } public DateTime LastUpdated { get; set; } }
+
+    private class Measurement { public string? Parameter { get; set; } public double Value { get; set; } public string? Unit { get; set; } public DateTime LastUpdated { get; set; } }
+}

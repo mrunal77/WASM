@@ -1,0 +1,47 @@
+@page "/currency"
+@inject HttpClient Http
+
+<PageTitle>Currency</PageTitle>
+
+<h1>Currency Converter</h1>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <input class="form-control" @bind="amount" type="number" step="any" />
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" @bind="baseCurrency">
+            @foreach(var c in currencies) { <option value="@c">@c</option> }
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" @bind="targetCurrency">
+            @foreach(var c in currencies) { <option value="@c">@c</option> }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <button class="btn btn-primary" @onclick="Convert">Convert</button>
+    </div>
+</div>
+
+@if (converted != null)
+{
+    <div class="alert alert-success">@amount @baseCurrency = @converted.Value.ToString("F4") @targetCurrency</div>
+}
+
+@code {
+    private decimal amount = 1m;
+    private string baseCurrency = "USD";
+    private string targetCurrency = "EUR";
+    private decimal? converted;
+    private List<string> currencies = new() { "USD","EUR","GBP","INR","JPY","AUD","CAD" };
+
+    private async Task Convert()
+    {
+        var url = $"https://api.exchangerate.host/convert?from={baseCurrency}&to={targetCurrency}&amount={amount}";
+        var resp = await Http.GetFromJsonAsync<ExchangeResp>(url);
+        converted = resp?.Result;
+    }
+
+    private class ExchangeResp { public decimal Result { get; set; } }
+}
