@@ -1,0 +1,43 @@
+@page "/gallery"
+@inject IJSRuntime JS
+
+<PageTitle>Gallery</PageTitle>
+
+<h1>Image Gallery (Webcam)</h1>
+<div class="mb-3">
+    <video id="camVideo" style="max-width:100%;border:1px solid #ccc" autoplay muted></video>
+</div>
+<div class="mb-3">
+    <button class="btn btn-secondary me-2" @onclick="StartCamera">Start Camera</button>
+    <button class="btn btn-primary" @onclick="TakePhoto">Take Photo</button>
+</div>
+<div class="row mt-3">
+    @foreach(var img in photos)
+    {
+        <div class="col-6 col-md-3 mb-3">
+            <img src="@img" class="img-fluid" />
+        </div>
+    }
+</div>
+
+@code {
+    private List<string> photos = new();
+
+    private async Task StartCamera()
+    {
+        var result = await JS.InvokeAsync<string>("wasmGallery.startCamera", "camVideo");
+        if (result != "ok")
+        {
+            // ignore or show message
+        }
+    }
+
+    private async Task TakePhoto()
+    {
+        var data = await JS.InvokeAsync<string>("wasmGallery.takePhoto", "camVideo");
+        if (!string.IsNullOrEmpty(data))
+        {
+            photos.Insert(0, data);
+        }
+    }
+}

@@ -1,0 +1,65 @@
+@page "/graph"
+@using System.Globalization
+@inject IJSRuntime JS
+
+<PageTitle>Grapher</PageTitle>
+
+<h1>Function Grapher</h1>
+<p>Pick a function and range, click Plot to render a simple SVG plot.</p>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <select class="form-select" @bind="selectedFunc">
+            @foreach(var f in functions) { <option value="@f">@f</option> }
+        </select>
+    </div>
+    <div class="col-md-3"><input class="form-control" @bind="minX" type="number" step="any" /></div>
+    <div class="col-md-3"><input class="form-control" @bind="maxX" type="number" step="any" /></div>
+    <div class="col-md-2"><button class="btn btn-primary" @onclick="Plot">Plot</button></div>
+</div>
+
+<div style="width:100%;height:320px;border:1px solid #ccc;overflow:auto">
+    <svg viewBox="0 0 600 300" preserveAspectRatio="none" style="width:100%;height:300px">
+        <polyline points="@svgPoints" fill="none" stroke="#0ff" stroke-width="2" />
+    </svg>
+</div>
+
+@code {
+    private string[] functions = new[] { "sin(x)", "cos(x)", "tan(x)", "x^2", "x^3" };
+    private string selectedFunc = "sin(x)";
+    private double minX = -6.28;
+    private double maxX = 6.28;
+    private string svgPoints = "";
+
+    private void Plot()
+    {
+        int samples = 400;
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < samples; i++)
+        {
+            var t = (double)i / (samples - 1);
+            var x = minX + t * (maxX - minX);
+            var y = Eval(selectedFunc, x);
+            // map x to 0..600, y to 150 +- scale
+            var px = t * 600.0;
+            var py = 150 - (y * 20); // simple scale
+            if (double.IsNaN(py) || double.IsInfinity(py)) continue;
+            if (sb.Length > 0) sb.Append(' ');
+            sb.AppendFormat(CultureInfo.InvariantCulture, "{0},{1}", px, py);
+        }
+        svgPoints = sb.ToString();
+    }
+
+    private double Eval(string func, double x)
+    {
+        return func switch
+        {
+            "sin(x)" => Math.Sin(x),
+            "cos(x)" => Math.Cos(x),
+            "tan(x)" => Math.Tan(x),
+            "x^2" => x * x,
+            "x^3" => x * x * x,
+            _ => 0
+        };
+    }
+}
