@@ -1,0 +1,591 @@
+@page "/code-screenshot"
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>Code Screenshot Generator</PageTitle>
+
+<h1>Code Screenshot Generator</h1>
+<p class="text-muted">Paste code, pick a language and theme, then download it as an image or copy it.</p>
+
+<div class="row g-4">
+    <div class="col-xl-4 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Settings</h5>
+
+                <div class="mb-3">
+                    <label class="form-label" for="lang-select">Language</label>
+                    <select id="lang-select" class="form-select" value="@currentLanguage" @onchange="OnLanguageChange">
+                        @foreach (var lang in Languages)
+                        {
+                            <option value="@lang.Key">@lang.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="theme-select">Theme</label>
+                    <select id="theme-select" class="form-select" value="@currentTheme" @onchange="OnThemeChange">
+                        @foreach (var theme in Themes)
+                        {
+                            <option value="@theme.Key">@theme.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="title-input">File name</label>
+                    <input id="title-input" class="form-control" value="@title" @oninput="OnTitleInput" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label d-flex justify-content-between" for="size-range">
+                        <span>Font size</span><span>@fontSize px</span>
+                    </label>
+                    <input id="size-range" type="range" class="form-range" min="12" max="24" step="1" value="@fontSize" @oninput="OnFontSizeInput" />
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input id="line-numbers" class="form-check-input" type="checkbox" checked="@showLineNumbers" @onchange="OnLineNumbersChange" />
+                        <label class="form-check-label" for="line-numbers">Show line numbers</label>
+                    </div>
+                    <div class="form-check">
+                        <input id="window-chrome" class="form-check-input" type="checkbox" checked="@showWindowChrome" @onchange="OnWindowChromeChange" />
+                        <label class="form-check-label" for="window-chrome">Show window controls</label>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="code-input">Code</label>
+                    <textarea id="code-input" class="form-control code-input" value="@codeInput" @oninput="OnCodeInput" spellcheck="false"></textarea>
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="LoadSample">
+                            <i class="fa fa-magic me-1" aria-hidden="true"></i> Load sample for @CurrentLanguageName
+                        </button>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-primary" @onclick="DownloadPngAsync">
+                        <i class="fa fa-download me-1" aria-hidden="true"></i> Download PNG
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CopyImageAsync">
+                        <i class="fa fa-image me-1" aria-hidden="true"></i> Copy Image
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CopyCodeAsync">
+                        <i class="fa fa-copy me-1" aria-hidden="true"></i> Copy Code
+                    </button>
+                </div>
+
+                @if (statusMessage is not null)
+                {
+                    <div class="mt-3 @(isError ? "status-error" : "status-ok")" role="status" aria-live="polite">@statusMessage</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-8 col-lg-7">
+        <div class="snippet-stage">
+            <div class="snippet-stage-inner">
+                <div @ref="previewRef"></div>
+            </div>
+        </div>
+        <p class="text-muted small mt-2 mb-0">The preview updates as you type. “Copy Image” puts the PNG directly on your clipboard.</p>
+    </div>
+</div>
+
+@code {
+    private string currentLanguage = "csharp";
+    private string currentTheme = "one-dark";
+    private string title = "hello.cs";
+    private double fontSize = 15;
+    private bool showLineNumbers = true;
+    private bool showWindowChrome = true;
+    private string codeInput = string.Empty;
+    private string? statusMessage;
+    private bool isError;
+    private ElementReference previewRef;
+    private CancellationTokenSource? statusCts;
+
+    private string CurrentLanguageName => Languages.First(l => l.Key == currentLanguage).Name;
+    private CodeLanguage CurrentLanguage => Languages.First(l => l.Key == currentLanguage);
+
+    private record CodeLanguage(string Key, string Name, string Extension, string Sample);
+    private record ThemeOption(string Key, string Name);
+
+    private static readonly List<ThemeOption> Themes = new()
+    {
+        new("one-dark", "One Dark"),
+        new("dracula", "Dracula"),
+        new("nord", "Nord"),
+        new("monokai", "Monokai"),
+        new("github-dark", "GitHub Dark"),
+        new("solarized-dark", "Solarized Dark"),
+        new("solarized-light", "Solarized Light"),
+        new("github-light", "GitHub Light"),
+        new("vs-light", "VS Light"),
+    };
+
+    private static readonly List<CodeLanguage> Languages = new()
+    {
+        new("csharp", "C#", "cs",
+            """
+            using System;
+
+            namespace Demo
+            {
+                public class Program
+                {
+                    public static void Main(string[] args)
+                    {
+                        int[] numbers = new[] { 1, 2, 3, 4, 5 };
+                        int sum = 0;
+
+                        foreach (var n in numbers)
+                        {
+                            sum += n;
+                        }
+
+                        Console.WriteLine($"Sum: {sum}");
+                    }
+                }
+            }
+            """),
+        new("javascript", "JavaScript", "js",
+            """
+            function fibonacci(n, memo = {}) {
+              if (n <= 1) return n;
+              if (memo[n]) return memo[n];
+
+              memo[n] = fibonacci(n - 1, memo) + fibonacci(n - 2, memo);
+              return memo[n];
+            }
+
+            const result = Array.from({ length: 10 }, (_, i) => fibonacci(i));
+            console.table(result);
+            """),
+        new("typescript", "TypeScript", "ts",
+            """
+            interface User {
+              id: number;
+              name: string;
+              role: 'admin' | 'member';
+            }
+
+            const users: User[] = [
+              { id: 1, name: 'Ada Lovelace', role: 'admin' },
+              { id: 2, name: 'Grace Hopper', role: 'member' },
+            ];
+
+            const admins = users.filter((u) => u.role === 'admin');
+
+            function greet(user: User): string {
+              return `Hello, ${user.name}!`;
+            }
+            """),
+        new("python", "Python", "py",
+            """
+            def quicksort(items):
+                if len(items) <= 1:
+                    return items
+
+                pivot = items[len(items) // 2]
+                left = [x for x in items if x < pivot]
+                middle = [x for x in items if x == pivot]
+                right = [x for x in items if x > pivot]
+
+                return quicksort(left) + middle + quicksort(right)
+
+            print(quicksort([3, 6, 8, 10, 1, 2, 1]))
+            """),
+        new("xml", "HTML", "html",
+            """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <title>Hello</title>
+            </head>
+            <body>
+              <h1>Hello, World!</h1>
+              <p>This is a <strong>code snippet</strong>.</p>
+            </body>
+            </html>
+            """),
+        new("css", "CSS", "css",
+            """
+            :root {
+              --primary: #1b6ec2;
+              --radius: 0.5rem;
+            }
+
+            .card {
+              border-radius: var(--radius);
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            }
+
+            .btn {
+              background: var(--primary);
+              color: #fff;
+            }
+            """),
+        new("java", "Java", "java",
+            """
+            import java.util.List;
+
+            public class Main {
+                public static void main(String[] args) {
+                    List<String> fruits = List.of("apple", "banana", "cherry");
+
+                    fruits.stream()
+                          .filter(f -> f.length() > 5)
+                          .map(String::toUpperCase)
+                          .forEach(System.out::println);
+                }
+            }
+            """),
+        new("c", "C", "c",
+            """
+            #include <stdio.h>
+
+            int main(void) {
+                int numbers[] = { 10, 20, 30, 40, 50 };
+                int total = 0;
+
+                for (int i = 0; i < 5; i++) {
+                    total += numbers[i];
+                }
+
+                printf("Total: %d\n", total);
+                return 0;
+            }
+            """),
+        new("cpp", "C++", "cpp",
+            """
+            #include <iostream>
+            #include <vector>
+            #include <algorithm>
+
+            int main() {
+                std::vector<int> numbers = { 4, 2, 8, 5, 1 };
+
+                std::sort(numbers.begin(), numbers.end());
+
+                for (const auto& n : numbers) {
+                    std::cout << n << ' ';
+                }
+
+                std::cout << '\n';
+                return 0;
+            }
+            """),
+        new("go", "Go", "go",
+            """
+            package main
+
+            import "fmt"
+
+            func main() {
+                nums := []int{5, 3, 8, 1, 9}
+                sum := 0
+
+                for _, n := range nums {
+                    sum += n
+                }
+
+                fmt.Printf("Sum: %d\n", sum)
+            }
+            """),
+        new("rust", "Rust", "rs",
+            """
+            fn main() {
+                let numbers = vec![10, 20, 30, 40];
+
+                let doubled: Vec<i32> = numbers
+                    .iter()
+                    .map(|n| n * 2)
+                    .collect();
+
+                println!("{:?}", doubled);
+            }
+            """),
+        new("kotlin", "Kotlin", "kt",
+            """
+            fun main() {
+                val colors = listOf("red", "green", "blue")
+
+                val uppercased = colors.map { it.uppercase() }
+                uppercased.forEach { println(it) }
+            }
+            """),
+        new("swift", "Swift", "swift",
+            """
+            import Foundation
+
+            func greet(name: String) -> String {
+                return "Hello, \(name)!"
+            }
+
+            let message = greet(name: "World")
+            print(message)
+            """),
+        new("ruby", "Ruby", "rb",
+            """
+            def factorial(n)
+              return 1 if n <= 1
+
+              n * factorial(n - 1)
+            end
+
+            puts factorial(5)
+            """),
+        new("php", "PHP", "php",
+            """
+            <?php
+
+            $items = ['apple', 'banana', 'cherry'];
+
+            $count = array_reduce($items, fn($carry, $item) => $carry + 1, 0);
+
+            echo "Total: $count\n";
+            """),
+        new("sql", "SQL", "sql",
+            """
+            SELECT u.name, COUNT(o.id) AS orders
+            FROM users u
+            LEFT JOIN orders o ON o.user_id = u.id
+            WHERE u.active = 1
+            GROUP BY u.name
+            HAVING COUNT(o.id) > 0
+            ORDER BY orders DESC;
+            """),
+        new("json", "JSON", "json",
+            """
+            {
+              "name": "Code Snapshot",
+              "version": "1.0.0",
+              "features": ["download", "copy-image", "copy-code"],
+              "languages": 20,
+              "themes": [
+                { "id": "one-dark", "type": "dark" },
+                { "id": "github-light", "type": "light" }
+              ]
+            }
+            """),
+        new("bash", "Bash", "sh",
+            """
+            #!/bin/bash
+
+            # Backup all sqlite databases
+            for db in *.db; do
+              if [ -f "$db" ]; then
+                cp "$db" "$db.bak"
+                echo "Backed up $db"
+              fi
+            done
+            """),
+        new("yaml", "YAML", "yml",
+            """
+            version: "3.8"
+
+            services:
+              web:
+                image: nginx:alpine
+                ports:
+                  - "8080:80"
+                environment:
+                  - DEBUG=true
+            """),
+        new("markdown", "Markdown", "md",
+            """
+            # Code Snapshot
+
+            Turn code into **beautiful screenshots**:
+
+            - Download as PNG
+            - Copy as image
+            - Copy the code
+
+            > Works fully in the browser.
+            """),
+        new("perl", "Perl", "pl",
+            """
+            #!/usr/bin/perl
+            use strict;
+            use warnings;
+
+            my @fruits = qw(apple banana cherry);
+
+            for my $fruit (@fruits) {
+                print uc($fruit), "\n";
+            }
+            """),
+        new("lua", "Lua", "lua",
+            """
+            local function fib(n)
+                if n <= 1 then return n end
+                return fib(n - 1) + fib(n - 2)
+            end
+
+            for i = 1, 8 do
+                io.write(fib(i), " ")
+            end
+            print()
+            """),
+        new("r", "R", "r",
+            """
+            library(dplyr)
+
+            data <- data.frame(
+              name  = c("Ada", "Grace", "Alan"),
+              score = c(98, 95, 92)
+            )
+
+            top <- data %>%
+              filter(score >= 95) %>%
+              arrange(desc(score))
+
+            print(top)
+            """),
+    };
+
+    protected override void OnInitialized()
+    {
+        codeInput = CurrentLanguage.Sample;
+        title = $"hello.{CurrentLanguage.Extension}";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await RenderPreviewAsync();
+        }
+    }
+
+    private async Task RenderPreviewAsync()
+    {
+        if (previewRef.Context is null) return;
+        await JS.InvokeVoidAsync("wasmCodeGen.render", previewRef, codeInput, currentLanguage, CurrentLanguageName, currentTheme, title, fontSize, showLineNumbers, showWindowChrome);
+    }
+
+    private async Task OnLanguageChange(ChangeEventArgs e)
+    {
+        var previous = currentLanguage;
+        currentLanguage = e.Value?.ToString() ?? currentLanguage;
+        if (title == SuggestedTitle(previous))
+        {
+            title = SuggestedTitle(currentLanguage);
+        }
+        await RenderPreviewAsync();
+    }
+
+    private async Task OnThemeChange(ChangeEventArgs e)
+    {
+        currentTheme = e.Value?.ToString() ?? currentTheme;
+        await RenderPreviewAsync();
+    }
+
+    private async Task OnTitleInput(ChangeEventArgs e)
+    {
+        title = e.Value?.ToString() ?? string.Empty;
+        await RenderPreviewAsync();
+    }
+
+    private async Task OnFontSizeInput(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), out var size))
+        {
+            fontSize = size;
+        }
+        await RenderPreviewAsync();
+    }
+
+    private async Task OnLineNumbersChange(ChangeEventArgs e)
+    {
+        showLineNumbers = e.Value is not null;
+        await RenderPreviewAsync();
+    }
+
+    private async Task OnWindowChromeChange(ChangeEventArgs e)
+    {
+        showWindowChrome = e.Value is not null;
+        await RenderPreviewAsync();
+    }
+
+    private async Task OnCodeInput(ChangeEventArgs e)
+    {
+        codeInput = e.Value?.ToString() ?? string.Empty;
+        await RenderPreviewAsync();
+    }
+
+    private async Task LoadSample()
+    {
+        codeInput = CurrentLanguage.Sample;
+        title = SuggestedTitle(currentLanguage);
+        ShowStatus($"Loaded a {CurrentLanguage.Name} sample.", false);
+        await RenderPreviewAsync();
+    }
+
+    private static string SuggestedTitle(string languageKey) =>
+        $"hello.{Languages.First(l => l.Key == languageKey).Extension}";
+
+    private async Task DownloadPngAsync()
+    {
+        var result = await JS.InvokeAsync<string>("wasmCodeGen.downloadPng", previewRef, GetPngFilename(title));
+        ShowStatus(result == "ok" ? "PNG image downloaded." : $"Could not create the image: {result}", result != "ok");
+    }
+
+    private async Task CopyImageAsync()
+    {
+        var result = await JS.InvokeAsync<string>("wasmCodeGen.copyImage", previewRef);
+        ShowStatus(result == "ok" ? "Image copied to clipboard." : $"Could not copy the image: {result}", result != "ok");
+    }
+
+    private async Task CopyCodeAsync()
+    {
+        var result = await JS.InvokeAsync<string>("wasmCodeGen.copyCode", codeInput);
+        ShowStatus(result == "ok" ? "Code copied to clipboard." : $"Could not copy the code: {result}", result != "ok");
+    }
+
+    private static string GetPngFilename(string value)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var safe = new string((value ?? string.Empty).Where(c => !invalid.Contains(c)).ToArray()).Trim();
+        if (string.IsNullOrWhiteSpace(safe))
+        {
+            safe = "code-screenshot";
+        }
+        return safe + (safe.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? string.Empty : ".png");
+    }
+
+    private void ShowStatus(string message, bool error)
+    {
+        statusCts?.Cancel();
+        statusMessage = message;
+        isError = error;
+        statusCts = new CancellationTokenSource();
+        _ = HideStatusAsync(statusCts.Token);
+    }
+
+    private async Task HideStatusAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(3500, token);
+            statusMessage = null;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        statusCts?.Cancel();
+        statusCts?.Dispose();
+    }
+}
