@@ -1,9 +1,46 @@
 ﻿@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>WASM Apps</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="home-hero">
+    <h1>WASM Apps</h1>
+    <p class="lead">A collection of small tools and demos built with Blazor WebAssembly — everything runs entirely in your browser.</p>
+</div>
 
-<p>Welcome to the Blazor WebAssembly weather app.</p>
-<p>Live weather forecasts are powered by the Open-Meteo API and deployed with GitHub Pages.</p>
-<a href="https://www.github.com/mrunal77" class="btn btn-outline-secondary mt-3">GitHub profile</a>
+<div class="row g-4 app-card-grid">
+    @foreach (var app in Apps)
+    {
+        <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+            <div class="card app-card h-100">
+                <a class="app-card-link" href="@app.Href">
+                    <div class="card-body d-flex flex-column">
+                        <div class="app-card-icon">
+                            <i class="@app.Icon" aria-hidden="true"></i>
+                        </div>
+                        <h2 class="card-title h5">@app.Title</h2>
+                        <p class="card-text flex-grow-1">@app.Description</p>
+                        <span class="app-card-cta">Open app <i class="fa fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private record AppInfo(string Title, string Href, string Icon, string Description);
+
+    private static readonly AppInfo[] Apps =
+    [
+        new("Weather Forecast", "weather", "fa-solid fa-cloud-sun", "Live weather data from Open-Meteo — uses your location or a city search."),
+        new("Calculator", "calculator", "fa-solid fa-calculator", "A handy calculator with on-screen keys and full keyboard support."),
+        new("Map", "map", "fa-solid fa-map", "Interactive map powered by OpenStreetMap and Leaflet. Center on your location with one click."),
+        new("Air Quality", "airquality", "fa-solid fa-wind", "Nearby air-quality readings based on your browser location."),
+        new("Currency Converter", "currency", "fa-solid fa-money-bill-transfer", "Convert between currencies with up-to-date exchange rates."),
+        new("Image Gallery", "gallery", "fa-solid fa-camera", "Snap photos with your webcam and browse them in a gallery."),
+        new("Function Grapher", "graph", "fa-solid fa-chart-line", "Pick a function and a range, then plot it as an SVG graph."),
+        new("Code Snapshot", "code-screenshot", "fa-solid fa-code", "Turn highlighted code into a crisp PNG image or copy it straight to your clipboard."),
+        new("File Compressor", "compress", "fa-solid fa-compress", "Shrink images and PDF files in your browser — nothing is ever uploaded."),
+        new("Counter", "counter", "fa-solid fa-plus", "A simple click counter demo."),
+    ];
+}
