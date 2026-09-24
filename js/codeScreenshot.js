@@ -1,11 +1,29 @@
 window.wasmCodeGen = {
+    _previewEl: null,
+    _fitScale: 1,
+
+    init: function () {
+        if (this._fitted) return;
+        this._fitted = true;
+        const self = this;
+        window.addEventListener('resize', function () {
+            if (self._previewEl) self.fit(self._previewEl);
+        });
+    },
+
     render: function (el, code, language, langLabel, theme, filename, fontSize, showLineNumbers, showWindowChrome) {
         if (!el) return;
+        this.init();
 
         const raw = (code || '').replace(/\r\n/g, '\n');
         const text = raw.endsWith('\n') ? raw.slice(0, -1) : raw;
 
         el.className = 'snippet-card';
+        el.classList.remove('snippet-fitted');
+        el.style.transform = '';
+        el.style.width = '';
+        el.style.height = '';
+        this._fitScale = 1;
         el.dataset.theme = theme || 'one-dark';
         el.style.setProperty('--code-font-size', (fontSize || 15) + 'px');
 
@@ -45,6 +63,66 @@ window.wasmCodeGen = {
 
         html += '</div>';
         el.innerHTML = html;
+        this._previewEl = el;
+
+        if (!el.parentElement || !el.parentElement.classList.contains('snippet-fit')) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'snippet-fit';
+            el.parentNode.insertBefore(wrapper, el);
+            wrapper.appendChild(el);
+        }
+
+        const fit = () => this.fit(el);
+        requestAnimationFrame(fit);
+        requestAnimationFrame(function () { requestAnimationFrame(fit); });
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(fit);
+        }
+    },
+
+    fit: function (el) {
+        const wrapper = el.parentElement;
+        if (!wrapper || !wrapper.classList.contains('snippet-fit')) return;
+        const stageInner = wrapper.parentElement;
+        if (!stageInner || !el.isConnected) return;
+
+        el.classList.remove('snippet-fitted');
+        el.style.transform = '';
+        el.style.width = '';
+        el.style.height = '';
+        el.style.maxWidth = '';
+        wrapper.classList.remove('snippet-fit--scaled');
+        wrapper.style.width = '';
+        wrapper.style.height = '';
+        this._fitScale = 1;
+
+        const cs = getComputedStyle(stageInner);
+        const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+        const avail = stageInner.clientWidth - pad;
+        if (!avail) return;
+
+        const body = el.querySelector('.snippet-body') || el;
+        const bar = el.querySelector('.snippet-bar');
+        let naturalW = body.scrollWidth;
+        if (bar) naturalW = Math.max(naturalW, bar.scrollWidth);
+        if (!naturalW) return;
+        if (naturalW <= avail + 1) return;
+
+        const isNarrow = !window.matchMedia || window.matchMedia('(max-width: 767.98px)').matches;
+        if (!isNarrow) return;
+
+        const s = Math.max(0.2, avail / naturalW);
+        const naturalH = el.getBoundingClientRect().height;
+        el.style.maxWidth = 'none';
+        el.style.width = naturalW + 'px';
+        el.style.height = naturalH + 'px';
+        el.style.transformOrigin = 'left top';
+        el.style.transform = 'scale(' + s + ')';
+        wrapper.style.width = (naturalW * s) + 'px';
+        wrapper.style.height = (naturalH * s) + 'px';
+        wrapper.classList.add('snippet-fit--scaled');
+        el.classList.add('snippet-fitted');
+        this._fitScale = s;
     },
 
     escapeHtml: function (s) {
@@ -57,8 +135,10 @@ window.wasmCodeGen = {
 
     capture: async function (el, scale) {
         if (!window.html2canvas) throw new Error('image library not loaded');
+        const s = this._fitScale || 1;
+        const target = (scale || 2) / s;
         return window.html2canvas(el, {
-            scale: scale || 2,
+            scale: target,
             backgroundColor: null,
             useCORS: true,
             logging: false

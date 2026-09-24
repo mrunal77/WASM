@@ -300,6 +300,12 @@ main[b-8q1g3njic7] {
     overflow-x: auto;
 }
 
+@media (max-width: 575.98px) {
+    .snippet-stage-inner[b-qbhbrxnvim] {
+        padding: 1rem;
+    }
+}
+
 .status-ok[b-qbhbrxnvim] {
     color: #198754;
 }
