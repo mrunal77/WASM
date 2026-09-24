@@ -8,7 +8,7 @@
     <main>
         @if (!IsHome)
         {
-            <a class="back-link" href="/" title="Back to home" aria-label="Back to home">
+            <a class="back-link" href="@HomeUri" title="Back to home" aria-label="Back to home">
                 <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
             </a>
         }
@@ -20,4 +20,6 @@
 
 @code {
     private bool IsHome => Navigation.Uri == Navigation.BaseUri;
+
+    private string HomeUri => Navigation.BaseUri;
 }
