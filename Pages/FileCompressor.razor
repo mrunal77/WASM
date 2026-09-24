@@ -1,0 +1,432 @@
+@page "/compress"
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>File Compressor</PageTitle>
+
+<h1>File Compressor</h1>
+<p class="text-muted">Compress images and PDF files entirely in your browser — nothing is ever uploaded.</p>
+
+<div class="row g-4">
+    <div class="col-xl-4 col-lg-5">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Options</h5>
+
+                <div class="mb-3">
+                    <label class="form-label d-flex justify-content-between" for="quality-range">
+                        <span>Image quality</span><span>@quality%</span>
+                    </label>
+                    <input id="quality-range" type="range" class="form-range" min="5" max="100" step="5" value="@quality" @oninput="OnQualityInput" />
+                    <div class="form-text">Applies to JPEG and WebP output.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="max-dim">Max dimension</label>
+                    <select id="max-dim" class="form-select" value="@maxDimension" @onchange="OnMaxDimensionChange">
+                        <option value="0">Keep original size</option>
+                        <option value="2560">2560 px</option>
+                        <option value="1920">1920 px</option>
+                        <option value="1600">1600 px</option>
+                        <option value="1280">1280 px</option>
+                        <option value="1024">1024 px</option>
+                        <option value="800">800 px</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="out-format">Output format</label>
+                    <select id="out-format" class="form-select" value="@outputFormat" @onchange="OnFormatChange">
+                        <option value="auto">Keep original (JPEG/WebP/PNG, others → JPEG)</option>
+                        <option value="image/jpeg">JPEG</option>
+                        <option value="image/webp">WebP</option>
+                        <option value="image/png">PNG</option>
+                    </select>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input id="strip-meta" class="form-check-input" type="checkbox" checked="@stripPdfMetadata" @onchange="OnStripMetaChange" />
+                    <label class="form-check-label" for="strip-meta">Strip PDF metadata</label>
+                </div>
+
+                <button type="button" class="btn btn-outline-secondary w-100" @onclick="RecompressAllAsync" disabled="@(busy || ItemsDoneCount == 0)">
+                    <i class="fa fa-rotate me-1" aria-hidden="true"></i> Recompress all
+                </button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Summary</h5>
+                @if (items.Count == 0)
+                {
+                    <p class="text-muted mb-0">No files added yet.</p>
+                }
+                else
+                {
+                    <div class="small">
+                        <div class="d-flex justify-content-between"><span>Files</span><span>@items.Count</span></div>
+                        <div class="d-flex justify-content-between"><span>Original size</span><span>@FormatSize(TotalOriginal)</span></div>
+                        <div class="d-flex justify-content-between"><span>Compressed size</span><span>@FormatSize(TotalCompressed)</span></div>
+                        <div class="d-flex justify-content-between text-success fw-semibold">
+                            <span>Total saved</span><span>@TotalSavedPercent%</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-8 col-lg-7">
+        <div class="dropzone" @ref="dropRef">
+            <i class="fa fa-cloud-arrow-up fa-2x mb-2" aria-hidden="true"></i>
+            <p class="mb-1 fw-semibold">Drop images or PDFs here</p>
+            <p class="text-muted small mb-2">JPEG, PNG, WebP, GIF, BMP, PDF — up to 100 MB each. Animated GIFs are converted to a still image.</p>
+            <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenPicker">
+                <i class="fa fa-folder-open me-1" aria-hidden="true"></i> Browse files
+            </button>
+            <input id="compress-input" type="file" class="d-none" multiple accept="@AcceptAttr" @ref="inputRef" />
+        </div>
+
+        @if (items.Count == 0)
+        {
+            <div class="text-center text-muted py-5">
+                <i class="fa fa-file-zipper fa-3x mb-2" aria-hidden="true"></i>
+                <p class="mb-0">Added files and their compressed results will appear here.</p>
+            </div>
+        }
+        else
+        {
+            <ul class="list-group shadow-sm compress-list">
+                @foreach (var item in items)
+                {
+                    <li class="list-group-item compress-item @(item.Status == "error" ? "is-error" : "is-success")">
+                        <div class="d-flex align-items-center gap-3 w-100">
+                            <span class="ci-icon">
+                                <i class="fa @(item.IsPdf ? "fa-file-pdf" : "fa-file-image")" aria-hidden="true"></i>
+                            </span>
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="ci-name text-truncate" title="@item.Name">@item.Name</div>
+                                <div class="ci-meta">
+                                    @if (item.Status == "pending")
+                                    {
+                                        <span class="text-muted">Waiting…</span>
+                                    }
+                                    else if (item.Status == "compressing")
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span><span>Compressing…</span>
+                                    }
+                                    else if (item.Status == "done")
+                                    {
+                                        <span>@FormatSize(item.OriginalSize) → <strong>@FormatSize(item.NewSize)</strong></span>
+                                        @if (item.KeptOriginal)
+                                        {
+                                            <span class="badge text-bg-secondary ms-2" title="Compression produced a larger file, so the original is kept.">already optimized</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge text-bg-success ms-2">@item.SavedPercent% saved</span>
+                                        }
+                                        @if (item.IsImage)
+                                        {
+                                            <span class="text-muted ms-2">@item.Width × @item.Height px</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-danger">@item.Error</span>
+                                    }
+                                </div>
+                            </div>
+                            @if (item.Status == "done")
+                            {
+                                <button class="btn btn-sm btn-primary" @onclick="() => DownloadAsync(item)" title="Download @GetOutputName(item)">
+                                    <i class="fa fa-download" aria-hidden="true"></i>
+                                </button>
+                            }
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => RemoveAsync(item)" title="Remove">
+                                <i class="fa fa-xmark" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+@code {
+    private ElementReference inputRef;
+    private ElementReference dropRef;
+    private DotNetObjectReference<FileCompressor>? dotNetRef;
+
+    private int quality = 75;
+    private int maxDimension = 0;
+    private string outputFormat = "auto";
+    private bool stripPdfMetadata = true;
+
+    private readonly List<CompressItem> items = new();
+
+    private const long MaxBytes = 100L * 1024 * 1024;
+    private const string AcceptAttr = "image/jpeg,image/png,image/webp,image/gif,image/bmp,application/pdf,.jpg,.jpeg,.png,.webp,.gif,.bmp,.pdf";
+
+    private bool busy => items.Any(i => i.Status == "compressing" || i.Status == "pending");
+    private int ItemsDoneCount => items.Count(i => i.Status == "done");
+
+    private long TotalOriginal => items.Where(i => i.Status == "done").Sum(i => i.OriginalSize);
+    private long TotalCompressed => items.Where(i => i.Status == "done").Sum(i => i.NewSize);
+    private int TotalSavedPercent => TotalCompressed == 0 ? 0 : (int)Math.Round(100.0 * (1.0 - (double)TotalCompressed / TotalOriginal));
+
+    public class SelectedFile
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public long Size { get; set; }
+        public string Type { get; set; } = string.Empty;
+    }
+
+    private class CompressResult
+    {
+        public bool Success { get; set; }
+        public string? Error { get; set; }
+        public string? Url { get; set; }
+        public long Size { get; set; }
+        public string? Mime { get; set; }
+        public bool KeptOriginal { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public int OriginalWidth { get; set; }
+        public int OriginalHeight { get; set; }
+    }
+
+    private class CompressItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+        public long OriginalSize { get; set; }
+        public long NewSize { get; set; }
+        public string? BlobUrl { get; set; }
+        public string? OutMime { get; set; }
+        public bool KeptOriginal { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public string Status { get; set; } = "pending";
+        public string? Error { get; set; }
+
+        public bool IsPdf => Type == "application/pdf";
+        public bool IsImage => Type.StartsWith("image/");
+        public int SavedPercent => OriginalSize <= 0 ? 0 : (int)Math.Round(100.0 * (1.0 - (double)NewSize / OriginalSize));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("wasmFileCompressor.attach", inputRef, dropRef, dotNetRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task FilesSelected(List<SelectedFile> files)
+    {
+        var toCompress = new List<CompressItem>();
+        foreach (var f in files)
+        {
+            var item = new CompressItem
+            {
+                Id = f.Id,
+                Name = string.IsNullOrWhiteSpace(f.Name) ? "file" : f.Name,
+                Type = NormalizeType(f.Name, f.Type),
+                OriginalSize = f.Size
+            };
+
+            if (!IsSupported(item))
+            {
+                item.Status = "error";
+                item.Error = "Unsupported file type. Supported: JPEG, PNG, WebP, GIF, BMP and PDF.";
+            }
+            else if (item.OriginalSize > MaxBytes)
+            {
+                item.Status = "error";
+                item.Error = "This file exceeds the 100 MB limit.";
+            }
+            else
+            {
+                item.Status = "pending";
+                toCompress.Add(item);
+            }
+            items.Add(item);
+        }
+
+        if (toCompress.Count > 0)
+        {
+            await Task.WhenAll(toCompress.Select(CompressOneAsync));
+        }
+        else
+        {
+            StateHasChanged();
+        }
+    }
+
+    private async Task CompressOneAsync(CompressItem item)
+    {
+        item.Status = "compressing";
+        StateHasChanged();
+
+        var options = new
+        {
+            quality = quality / 100.0,
+            maxDimension,
+            format = outputFormat == "auto" ? string.Empty : outputFormat,
+            stripMetadata = stripPdfMetadata
+        };
+
+        try
+        {
+            var result = await JS.InvokeAsync<CompressResult>("wasmFileCompressor.compress", item.Id, options);
+            if (result is { Success: true } && result.Url is not null)
+            {
+                item.Status = "done";
+                item.BlobUrl = result.Url;
+                item.NewSize = result.Size;
+                item.OutMime = string.IsNullOrEmpty(result.Mime) ? item.Type : result.Mime;
+                item.KeptOriginal = result.KeptOriginal;
+                item.Width = result.Width;
+                item.Height = result.Height;
+            }
+            else
+            {
+                item.Status = "error";
+                item.Error = result?.Error ?? "Compression failed.";
+            }
+        }
+        catch (Exception ex)
+        {
+            item.Status = "error";
+            item.Error = ex.Message;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task RecompressAllAsync()
+    {
+        var done = items.Where(i => i.Status == "done").ToList();
+        await Task.WhenAll(done.Select(CompressOneAsync));
+    }
+
+    private Task DownloadAsync(CompressItem item) =>
+        JS.InvokeVoidAsync("wasmFileCompressor.download", item.BlobUrl, GetOutputName(item)).AsTask();
+
+    private async Task RemoveAsync(CompressItem item)
+    {
+        items.Remove(item);
+        await JS.InvokeVoidAsync("wasmFileCompressor.release", item.Id);
+        StateHasChanged();
+    }
+
+    private Task OpenPicker() => JS.InvokeVoidAsync("wasmFileCompressor.openPicker").AsTask();
+
+    private void OnQualityInput(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var value))
+        {
+            quality = Math.Clamp(value, 5, 100);
+        }
+    }
+
+    private void OnMaxDimensionChange(ChangeEventArgs e)
+    {
+        maxDimension = int.TryParse(e.Value?.ToString(), out var value) ? value : 0;
+    }
+
+    private void OnFormatChange(ChangeEventArgs e)
+    {
+        outputFormat = e.Value?.ToString() ?? "auto";
+    }
+
+    private void OnStripMetaChange(ChangeEventArgs e)
+    {
+        stripPdfMetadata = e.Value is not null;
+    }
+
+    private static string NormalizeType(string name, string type)
+    {
+        var t = (type ?? string.Empty).ToLowerInvariant();
+        if (string.IsNullOrEmpty(t) || t == "application/octet-stream")
+        {
+            var ext = Path.GetExtension(name).TrimStart('.').ToLowerInvariant();
+            t = ext switch
+            {
+                "pdf" => "application/pdf",
+                "jpg" or "jpeg" => "image/jpeg",
+                "png" => "image/png",
+                "webp" => "image/webp",
+                "gif" => "image/gif",
+                "bmp" => "image/bmp",
+                _ => t
+            };
+        }
+        return t;
+    }
+
+    private static bool IsSupported(CompressItem item)
+    {
+        var t = item.Type;
+        if (t == "application/pdf") return true;
+        var ext = Path.GetExtension(item.Name).TrimStart('.').ToLowerInvariant();
+        return t is "image/jpeg" or "image/png" or "image/webp" or "image/gif" or "image/bmp"
+               || ext is "jpg" or "jpeg" or "png" or "webp" or "gif" or "bmp" or "pdf";
+    }
+
+    private string GetOutputName(CompressItem item)
+    {
+        if (item.KeptOriginal)
+        {
+            return item.Name;
+        }
+
+        var baseName = string.IsNullOrWhiteSpace(item.Name)
+            ? "compressed"
+            : Path.GetFileNameWithoutExtension(item.Name);
+        if (string.IsNullOrWhiteSpace(baseName)) baseName = "compressed";
+
+        var mime = string.IsNullOrEmpty(item.OutMime) ? item.Type : item.OutMime;
+        var ext = mime switch
+        {
+            "application/pdf" => "pdf",
+            "image/webp" => "webp",
+            "image/png" => "png",
+            _ => "jpg"
+        };
+        return $"{baseName}.min.{ext}";
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        var kb = bytes / 1024.0;
+        if (kb < 1024) return $"{kb:0.#} KB";
+        var mb = kb / 1024.0;
+        if (mb < 1024) return $"{mb:0.##} MB";
+        return $"{mb / 1024.0:0.##} GB";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (dotNetRef is not null)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("wasmFileCompressor.detach");
+            }
+            catch (Exception)
+            {
+                // circuit may already be disposed
+            }
+            dotNetRef.Dispose();
+        }
+    }
+}
