@@ -1,6 +1,7 @@
 ﻿@page "/calculator"
 @using System.Globalization
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
 @implements IAsyncDisposable
 
 <div class="calculator-container" @ref="calculatorRef" tabindex="0" aria-label="Calculator" role="region" @onkeydown="HandleKeyDown">
@@ -8,6 +9,15 @@
          @onmousedown="StartDrag"
          @ontouchstart="StartDrag">
         <span class="calculator-title">Calculator</span>
+        <button type="button"
+                class="close-btn"
+                @onclick="CloseCalculatorWindow"
+                @onmousedown:stopPropagation="true"
+                @onclick:stopPropagation="true"
+                title="Close calculator"
+                aria-label="Close calculator">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
     </div>
 
     <div class="calculator-modes" role="tablist" aria-label="Calculator modes">
@@ -380,13 +390,14 @@
             OnButtonClick(e.Key);
     }
 
-    private void CloseCalculator()
+    private void CloseCalculatorWindow()
     {
         input = string.Empty;
         lastOperator = string.Empty;
         accumulator = null;
         errorMessage = null;
         isNewEntry = true;
+        Navigation.NavigateTo(Navigation.BaseUri);
     }
 
     private class ClientRect
