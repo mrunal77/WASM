@@ -276,3 +276,34 @@ main[b-8q1g3njic7] {
         color: #888;
         cursor: not-allowed;
     }
+/* /Pages/CodeScreenshot.razor.rz.scp.css */
+.code-input[b-qbhbrxnvim] {
+    min-height: 280px;
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    tab-size: 4;
+    white-space: pre;
+}
+
+.snippet-stage[b-qbhbrxnvim] {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    min-height: 320px;
+    background-color: #fff;
+}
+
+.snippet-stage-inner[b-qbhbrxnvim] {
+    padding: 2rem;
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+}
+
+.status-ok[b-qbhbrxnvim] {
+    color: #198754;
+}
+
+.status-error[b-qbhbrxnvim] {
+    color: #dc3545;
+}
