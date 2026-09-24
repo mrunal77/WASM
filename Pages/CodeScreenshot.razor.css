@@ -21,6 +21,12 @@
     overflow-x: auto;
 }
 
+@media (max-width: 575.98px) {
+    .snippet-stage-inner {
+        padding: 1rem;
+    }
+}
+
 .status-ok {
     color: #198754;
 }

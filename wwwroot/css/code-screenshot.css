@@ -1,5 +1,14 @@
 /* Code Screenshot Generator - snippet card (global because markup is injected via JS) */
 
+.snippet-fit {
+    display: inline-block;
+    line-height: 0;
+}
+
+.snippet-fit.snippet-fit--scaled {
+    overflow: hidden;
+}
+
 .snippet-card {
     --code-font-size: 15px;
     --t-bg: #282c34;
@@ -86,6 +95,14 @@
     padding: 8px 0 12px;
     overflow-x: auto;
 }
+
+.snippet-card.snippet-fitted {
+    overflow: hidden;
+}
+
+    .snippet-card.snippet-fitted .snippet-body {
+        overflow: hidden;
+    }
 
 .snippet-line {
     display: flex;
