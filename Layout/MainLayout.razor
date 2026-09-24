@@ -1,12 +1,23 @@
 ﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
 <div class="page">
     <div class="sidebar">
         <NavMenu />
     </div>
 
     <main>
+        @if (!IsHome)
+        {
+            <a class="back-link" href="/" title="Back to home" aria-label="Back to home">
+                <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+            </a>
+        }
         <article class="content px-4">
             @Body
         </article>
     </main>
 </div>
+
+@code {
+    private bool IsHome => Navigation.Uri == Navigation.BaseUri;
+}
