@@ -1,0 +1,55 @@
+.dropzone {
+    border: 2px dashed #adb5bd;
+    border-radius: 0.75rem;
+    padding: 2rem 1rem;
+    text-align: center;
+    color: #6c757d;
+    transition: border-color 0.15s ease-in-out, background-color 0.15s ease-in-out;
+}
+
+    .dropzone.fc-drag-over {
+        border-color: #0d6efd;
+        background-color: #e7f1ff;
+    }
+
+.compress-list {
+    max-height: 440px;
+    overflow-y: auto;
+}
+
+.compress-item {
+    display: flex;
+    align-items: center;
+}
+
+.ci-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 0.5rem;
+    background-color: #e9ecef;
+    color: #495057;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.compress-item.is-error .ci-icon {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.compress-item.is-success .ci-icon {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.ci-name {
+    font-weight: 600;
+    word-break: break-all;
+}
+
+.ci-meta {
+    font-size: 0.85rem;
+}
