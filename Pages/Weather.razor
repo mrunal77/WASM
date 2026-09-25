@@ -1,88 +1,242 @@
 @page "/weather"
+@using System.Globalization
 @using System.Text.Json.Serialization
 @inject HttpClient Http
 @inject IJSRuntime JS
 
-<PageTitle>Weather</PageTitle>
+<PageTitle>Weather Forecast</PageTitle>
 
-<h1>Weather Forecast</h1>
-
-<p>Live weather data fetched from the Open-Meteo API. The app attempts to use your browser&apos;s location first and falls back to a city search if needed.</p>
-
-<div class="mb-3">
-    <label for="locationInput" class="form-label">City</label>
-    <input id="locationInput" class="form-control" @bind="locationName" @bind:event="oninput" placeholder="Try New York, London, or Tokyo" />
-</div>
-
-<div class="mb-3">
-    <button class="btn btn-secondary me-2" @onclick="UseCurrentLocationAsync" disabled="@isLoading">Use current location</button>
-    <button class="btn btn-primary" @onclick="() => LoadForecastAsync(forceCitySearch: true)" disabled="@isLoading">Search by city</button>
-</div>
-
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <div class="alert alert-danger">@errorMessage</div>
-}
-else if (forecasts == null)
-{
-    <p><em>@(isLoading ? "Loading forecast..." : "Enter a city or use your current location.")</em></p>
-}
-else
-{
-    <div class="mb-4">
-        <strong>@displayName</strong>
-        <br />
-        @if (latitude.HasValue && longitude.HasValue)
-        {
-            <span>@latitude:F4, @longitude:F4</span>
-        }
-        <br />
-        @if (!string.IsNullOrEmpty(timezone))
-        {
-            <span>Timezone: @timezone</span>
-        }
+<div class="weather-shell @ThemeClass">
+    <div class="weather-glow" aria-hidden="true">
+        <span class="glow-one"></span>
+        <span class="glow-two"></span>
+        <span class="glow-three"></span>
     </div>
 
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Low (°C)</th>
-                <th>High (°C)</th>
-                <th>Low (°F)</th>
-                <th>High (°F)</th>
-                <th>Summary</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var forecast in forecasts)
+    <section class="weather-hero" aria-labelledby="weather-title">
+        <div class="hero-top">
+            <div>
+                <p class="eyebrow">Live forecast</p>
+                <h1 id="weather-title">Weather Forecast</h1>
+                <p class="hero-sub">Your current location loads by default. Search any city for a seven-day outlook.</p>
+            </div>
+            <div class="unit-toggle" role="group" aria-label="Temperature units">
+                <button type="button" class="@(!useFahrenheit ? "is-active" : string.Empty)" aria-pressed="@(!useFahrenheit ? "true" : "false")" @onclick="() => SetUnits(false)">°C</button>
+                <button type="button" class="@(useFahrenheit ? "is-active" : string.Empty)" aria-pressed="@(useFahrenheit ? "true" : "false")" @onclick="() => SetUnits(true)">°F</button>
+            </div>
+        </div>
+
+        <form class="search-card" @onsubmit="SearchByCityAsync" @onsubmit:preventDefault>
+            <div class="search-field">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <label class="visually-hidden" for="locationInput">Search city</label>
+                <input id="locationInput"
+                       class="form-control"
+                       type="search"
+                       @bind="locationName"
+                       @bind:event="oninput"
+                       placeholder="Try New York, London, or Tokyo"
+                       autocomplete="off"
+                       disabled="@isLoading" />
+            </div>
+            <div class="search-actions">
+                <button type="submit" class="btn btn-light" disabled="@isLoading">
+                    <i class="fa-solid fa-paper-plane me-1" aria-hidden="true"></i> Search
+                </button>
+                <button type="button" class="btn btn-outline-light" @onclick="UseCurrentLocationAsync" disabled="@isLoading">
+                    <i class="fa-solid fa-location-crosshairs me-1" aria-hidden="true"></i> Current location
+                </button>
+            </div>
+        </form>
+
+        <div class="quick-cities" aria-label="Popular cities">
+            <span>Popular</span>
+            @foreach (var city in QuickCities)
             {
-                <tr>
-                    <td>@forecast.Date.ToString("d")</td>
-                    <td>@forecast.MinTempC:F1</td>
-                    <td>@forecast.MaxTempC:F1</td>
-                    <td>@forecast.MinTempF</td>
-                    <td>@forecast.MaxTempF</td>
-                    <td>@forecast.Summary</td>
-                </tr>
+                <button type="button" @onclick="() => SearchQuickCityAsync(city)" disabled="@isLoading">@city</button>
             }
-        </tbody>
-    </table>
-}
+        </div>
+    </section>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger weather-alert" role="alert">
+            <i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i> @errorMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(locationWarning))
+    {
+        <div class="alert alert-warning weather-alert" role="status">
+            <i class="fa-solid fa-location-dot me-1" aria-hidden="true"></i> @locationWarning
+        </div>
+    }
+
+    @if (isLoading && current is null)
+    {
+        <div class="skeleton-grid" role="status" aria-label="Loading forecast">
+            <div class="skeleton skeleton-hero"></div>
+            <div class="skeleton-row">
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+                <div class="skeleton"></div>
+            </div>
+            <div class="skeleton skeleton-list"></div>
+        </div>
+    }
+    else if (current is not null && forecasts is not null)
+    {
+        <section class="current-card" aria-label="Current weather">
+            <div class="current-main">
+                <div>
+                    <p class="current-location"><i class="fa-solid fa-location-dot me-1" aria-hidden="true"></i> @displayName</p>
+                    <div class="current-temperature">@FormatTemperature(current.TemperatureC)</div>
+                    <p class="current-summary">@current.Summary</p>
+                    <p class="current-range">H: @FormatTemperature(current.HighC) &nbsp; L: @FormatTemperature(current.LowC)</p>
+                </div>
+                <div class="current-icon">
+                    <i class="@IconClass(current.Code, current.IsDay)" aria-hidden="true"></i>
+                    <span>Feels like @FormatTemperature(current.FeelsLikeC)</span>
+                </div>
+            </div>
+            <dl class="metric-grid">
+                <div>
+                    <dt><i class="fa-solid fa-temperature-half" aria-hidden="true"></i> Feels like</dt>
+                    <dd>@FormatTemperature(current.FeelsLikeC)</dd>
+                </div>
+                <div>
+                    <dt><i class="fa-solid fa-droplet" aria-hidden="true"></i> Humidity</dt>
+                    <dd>@(current.Humidity.HasValue ? $"{current.Humidity.Value.ToString(CultureInfo.InvariantCulture)}%" : "—")</dd>
+                </div>
+                <div>
+                    <dt><i class="fa-solid fa-wind" aria-hidden="true"></i> Wind</dt>
+                    <dd>@FormatWind(current.WindSpeedKmh)</dd>
+                </div>
+                <div>
+                    <dt><i class="fa-solid fa-cloud-rain" aria-hidden="true"></i> Precipitation</dt>
+                    <dd>@FormatPrecipitation(current.PrecipitationMm)</dd>
+                </div>
+                <div>
+                    <dt><i class="fa-solid fa-cloud-sun" aria-hidden="true"></i> Sunrise</dt>
+                    <dd>@FormatClock(current.Sunrise)</dd>
+                </div>
+                <div>
+                    <dt><i class="fa-solid fa-cloud-moon" aria-hidden="true"></i> Sunset</dt>
+                    <dd>@FormatClock(current.Sunset)</dd>
+                </div>
+            </dl>
+        </section>
+
+        <section class="hourly-card" aria-labelledby="hourly-title">
+            <div class="card-heading">
+                <h2 id="hourly-title">Next 24 hours</h2>
+                <span><i class="fa-solid fa-arrow-right-arrow-left me-1" aria-hidden="true"></i> Scroll</span>
+            </div>
+            <div class="hour-track" role="list">
+                @for (var hourIndex = 0; hourIndex < hourlyForecasts.Count; hourIndex++)
+                {
+                    var hour = hourlyForecasts[hourIndex];
+                    <div class="hour-item" role="listitem" aria-label="@HourLabel(hour, hourIndex): @FormatTemperature(hour.TemperatureC), @MapWeatherCode(hour.Code)">
+                        <span class="hour-time">@HourLabel(hour, hourIndex)</span>
+                        <i class="@IconClass(hour.Code, hour.IsDay)" aria-hidden="true"></i>
+                        <strong>@FormatTemperature(hour.TemperatureC)</strong>
+                        <small><i class="fa-solid fa-droplet" aria-hidden="true"></i> @hour.PrecipitationProbability%</small>
+                    </div>
+                }
+            </div>
+        </section>
+
+        <section class="daily-card" aria-labelledby="daily-title">
+            <div class="card-heading">
+                <h2 id="daily-title">7-day outlook</h2>
+                <span>@UnitSymbol</span>
+            </div>
+            <ol class="day-list">
+                @for (var dayIndex = 0; dayIndex < forecasts.Length; dayIndex++)
+                {
+                    var forecast = forecasts[dayIndex];
+                    <li class="day-row">
+                        <div class="day-when">
+                            <strong>@(dayIndex == 0 ? "Today" : forecast.Date.ToString("ddd", CultureInfo.InvariantCulture))</strong>
+                            <span>@forecast.Date.ToString("M/d", CultureInfo.InvariantCulture)</span>
+                        </div>
+                        <div class="day-condition">
+                            <i class="@IconClass(forecast.Code, true)" aria-hidden="true"></i>
+                            <div>
+                                <strong>@forecast.Summary</strong>
+                                <span><i class="fa-solid fa-droplet" aria-hidden="true"></i> @forecast.PrecipitationProbability%</span>
+                            </div>
+                        </div>
+                        <div class="day-temperatures">
+                            <span>@FormatTemperature(forecast.MinTempC)</span>
+                            <span class="temperature-range" aria-hidden="true">
+                                <span class="temperature-fill" style="@RangeStyle(forecast.MinTempC, forecast.MaxTempC)"></span>
+                            </span>
+                            <strong>@FormatTemperature(forecast.MaxTempC)</strong>
+                        </div>
+                    </li>
+                }
+            </ol>
+        </section>
+
+        <p class="weather-meta">
+            @if (latitude.HasValue && longitude.HasValue)
+            {
+                <span><i class="fa-solid fa-compass me-1" aria-hidden="true"></i> @latitude.Value.ToString("F4", CultureInfo.InvariantCulture), @longitude.Value.ToString("F4", CultureInfo.InvariantCulture)</span>
+            }
+            @if (!string.IsNullOrEmpty(timezone))
+            {
+                <span><i class="fa-solid fa-clock me-1" aria-hidden="true"></i> @timezone</span>
+            }
+            <span><i class="fa-solid fa-cloud-arrow-down me-1" aria-hidden="true"></i> Open-Meteo</span>
+        </p>
+    }
+    else if (!isLoading)
+    {
+        <div class="empty-weather">
+            <i class="fa-solid fa-cloud-sun" aria-hidden="true"></i>
+            <h2>Check the sky anywhere</h2>
+            <p>Allow location access or search for a city to load the forecast.</p>
+        </div>
+    }
+</div>
 
 @code {
-    private string locationName = "New York";
+    private static readonly string[] QuickCities = ["New York", "London", "Tokyo", "Sydney"];
+
+    private string locationName = string.Empty;
     private string? displayName;
     private double? latitude;
     private double? longitude;
     private string? timezone;
+    private CurrentConditions? current;
     private WeatherForecast[]? forecasts;
+    private readonly List<HourlyForecast> hourlyForecasts = new();
+    private string? locationWarning;
     private string? errorMessage;
     private bool isLoading;
+    private bool useFahrenheit;
+
+    private string ThemeClass => current is null ? "theme-default" : GetThemeClass(current.Code, current.IsDay);
+    private string UnitSymbol => useFahrenheit ? "°F" : "°C";
 
     protected override async Task OnInitializedAsync()
     {
         await LoadForecastAsync();
+    }
+
+    private async Task SearchByCityAsync()
+    {
+        locationWarning = null;
+        await LoadForecastAsync(forceCitySearch: true);
+    }
+
+    private async Task SearchQuickCityAsync(string city)
+    {
+        locationName = city;
+        locationWarning = null;
+        await LoadForecastAsync(forceCitySearch: true);
     }
 
     private async Task UseCurrentLocationAsync()
@@ -91,10 +245,18 @@ else
         await LoadForecastAsync(forceCitySearch: false);
     }
 
+    private void SetUnits(bool fahrenheit)
+    {
+        useFahrenheit = fahrenheit;
+    }
+
     private async Task LoadForecastAsync(bool forceCitySearch = false)
     {
+        locationWarning = null;
         errorMessage = null;
         forecasts = null;
+        current = null;
+        hourlyForecasts.Clear();
         displayName = null;
         latitude = null;
         longitude = null;
@@ -108,11 +270,10 @@ else
                 try
                 {
                     await GetLocationFromBrowserAsync();
-                    displayName ??= "Current location";
                 }
-                catch (Exception ex)
+                catch (Exception exception)
                 {
-                    errorMessage = ex.Message;
+                    locationWarning = $"Current location is unavailable: {exception.Message} Search for a city instead.";
                 }
             }
 
@@ -123,14 +284,15 @@ else
 
             if (!latitude.HasValue || !longitude.HasValue)
             {
+                errorMessage ??= "Allow location access or enter a city name.";
                 return;
             }
 
             await LoadWeatherForecastAsync();
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            errorMessage = $"Unable to load weather forecast: {ex.Message}";
+            errorMessage = $"Unable to load weather forecast: {exception.Message}";
         }
         finally
         {
@@ -147,7 +309,7 @@ else
 
         if (!latitude.HasValue || !longitude.HasValue)
         {
-            throw new InvalidOperationException("Could not determine your location from the browser.");
+            throw new InvalidOperationException("the browser did not return coordinates.");
         }
     }
 
@@ -155,10 +317,6 @@ else
     {
         if (string.IsNullOrWhiteSpace(locationName))
         {
-            if (string.IsNullOrEmpty(errorMessage))
-            {
-                errorMessage = "Please enter a city name or allow location access.";
-            }
             return;
         }
 
@@ -166,7 +324,7 @@ else
         var geocoding = await Http.GetFromJsonAsync<GeocodingResponse>(geocodeUrl);
         var location = geocoding?.Results?.FirstOrDefault();
 
-        if (location == null)
+        if (location is null)
         {
             errorMessage = $"Unable to find coordinates for \"{locationName}\". Try another city name or use your current location.";
             return;
@@ -179,12 +337,12 @@ else
 
     private async Task LoadWeatherForecastAsync()
     {
-        var forecastUrl = $"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto";
+        var forecastUrl = FormattableString.Invariant(
+            $"https://api.open-meteo.com/v1/forecast?latitude={latitude:0.#####}&longitude={longitude:0.#####}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,weathercode,is_day&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&timezone=auto&forecast_days=7");
         var weather = await Http.GetFromJsonAsync<WeatherApiResponse>(forecastUrl);
-
         timezone = weather?.Timezone;
 
-        if (weather?.Daily?.Time == null || weather.Daily.Time.Length == 0)
+        if (weather?.Current is null || weather.Daily?.Time is null || weather.Daily.Time.Length == 0)
         {
             errorMessage = "Weather service returned no forecast data.";
             return;
@@ -193,13 +351,150 @@ else
         forecasts = weather.Daily.Time
             .Select((date, index) => new WeatherForecast
             {
-                Date = DateOnly.Parse(date),
+                Date = DateOnly.Parse(date, CultureInfo.InvariantCulture),
+                Code = weather.Daily.Weathercode.ElementAtOrDefault(index),
                 MaxTempC = weather.Daily.Temperature2mMax.ElementAtOrDefault(index),
                 MinTempC = weather.Daily.Temperature2mMin.ElementAtOrDefault(index),
+                PrecipitationProbability = weather.Daily.PrecipitationProbabilityMax.ElementAtOrDefault(index),
+                Sunrise = weather.Daily.Sunrise.ElementAtOrDefault(index),
+                Sunset = weather.Daily.Sunset.ElementAtOrDefault(index),
                 Summary = MapWeatherCode(weather.Daily.Weathercode.ElementAtOrDefault(index))
             })
             .ToArray();
+        hourlyForecasts.AddRange(BuildHourlyForecasts(weather));
+
+        var today = forecasts[0];
+        current = new CurrentConditions
+        {
+            Timestamp = ParseLocalTime(weather.Current.Time),
+            TemperatureC = weather.Current.Temperature,
+            FeelsLikeC = weather.Current.FeelsLike,
+            Humidity = weather.Current.Humidity,
+            PrecipitationMm = weather.Current.Precipitation,
+            WindSpeedKmh = weather.Current.WindSpeed,
+            Code = weather.Current.Code,
+            IsDay = weather.Current.IsDay == 1,
+            Summary = MapWeatherCode(weather.Current.Code),
+            HighC = today.MaxTempC,
+            LowC = today.MinTempC,
+            Sunrise = today.Sunrise,
+            Sunset = today.Sunset
+        };
     }
+
+    private static List<HourlyForecast> BuildHourlyForecasts(WeatherApiResponse weather)
+    {
+        var hourly = weather.Hourly;
+        if (hourly?.Time is null || hourly.Time.Length == 0 || weather.Current?.Time is null)
+        {
+            return new List<HourlyForecast>();
+        }
+
+        var entries = hourly.Time
+            .Select((timestamp, index) => new HourlyForecast
+            {
+                Time = ParseLocalTime(timestamp),
+                TemperatureC = hourly.Temperature.ElementAtOrDefault(index),
+                PrecipitationProbability = hourly.PrecipitationProbability.ElementAtOrDefault(index),
+                Code = hourly.WeatherCode.ElementAtOrDefault(index),
+                IsDay = hourly.IsDay.ElementAtOrDefault(index) == 1
+            })
+            .ToList();
+        var currentTime = ParseLocalTime(weather.Current.Time);
+        var startIndex = entries.FindIndex(entry => entry.Time >= currentTime);
+        if (startIndex < 0)
+        {
+            startIndex = 0;
+        }
+
+        return Enumerable.Range(0, 24)
+            .Select(offset => entries[(startIndex + offset) % entries.Count])
+            .ToList();
+    }
+
+    private static DateTime ParseLocalTime(string? timestamp)
+    {
+        return DateTime.TryParse(timestamp, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsed)
+            ? parsed
+            : DateTime.Now;
+    }
+
+    private string FormatTemperature(double celsius)
+    {
+        var temperature = useFahrenheit ? (celsius * 9 / 5) + 32 : celsius;
+        return $"{temperature.ToString("0.0", CultureInfo.InvariantCulture)}{UnitSymbol}";
+    }
+
+    private string FormatWind(double kmh)
+    {
+        return useFahrenheit
+            ? $"{(kmh * 0.621371).ToString("0", CultureInfo.InvariantCulture)} mph"
+            : $"{kmh.ToString("0", CultureInfo.InvariantCulture)} km/h";
+    }
+
+    private string FormatPrecipitation(double millimeters)
+    {
+        return useFahrenheit
+            ? $"{(millimeters / 25.4).ToString("0.00", CultureInfo.InvariantCulture)} in"
+            : $"{millimeters.ToString("0.0", CultureInfo.InvariantCulture)} mm";
+    }
+
+    private static string FormatClock(string? timestamp)
+    {
+        return string.IsNullOrEmpty(timestamp)
+            ? "—"
+            : ParseLocalTime(timestamp).ToString("h:mm tt", CultureInfo.InvariantCulture);
+    }
+
+    private static string HourLabel(HourlyForecast hour, int index)
+    {
+        return index == 0 ? "Now" : hour.Time.ToString("htt", CultureInfo.InvariantCulture);
+    }
+
+    private string RangeStyle(double minimum, double maximum)
+    {
+        if (forecasts is null || forecasts.Length == 0)
+        {
+            return "left: 0%; width: 100%;";
+        }
+
+        var weekMinimum = forecasts.Min(forecast => forecast.MinTempC);
+        var weekMaximum = forecasts.Max(forecast => forecast.MaxTempC);
+        var span = weekMaximum - weekMinimum;
+        if (span <= 0)
+        {
+            return "left: 0%; width: 100%;";
+        }
+
+        var left = Math.Clamp((minimum - weekMinimum) / span * 100, 0, 100);
+        var width = Math.Clamp((maximum - minimum) / span * 100, 8, 100 - left);
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"left: {left:0}%; width: {width:0}%;");
+    }
+
+    private static string IconClass(int code, bool isDay) => code switch
+    {
+        0 => isDay ? "fa-solid fa-sun" : "fa-solid fa-moon",
+        1 or 2 => isDay ? "fa-solid fa-cloud-sun" : "fa-solid fa-cloud-moon",
+        3 => "fa-solid fa-cloud",
+        45 or 48 => "fa-solid fa-smog",
+        51 or 53 or 55 or 56 or 57 => "fa-solid fa-cloud-rain",
+        61 or 63 or 65 or 66 or 67 or 80 or 81 or 82 => "fa-solid fa-cloud-showers-heavy",
+        71 or 73 or 75 or 77 or 85 or 86 => "fa-solid fa-snowflake",
+        95 or 96 or 99 => "fa-solid fa-cloud-bolt",
+        _ => "fa-solid fa-cloud"
+    };
+
+    private static string GetThemeClass(int code, bool isDay) => code switch
+    {
+        0 or 1 or 2 => isDay ? "theme-clear-day" : "theme-clear-night",
+        45 or 48 => "theme-fog",
+        51 or 53 or 55 or 56 or 57 or 61 or 63 or 65 or 66 or 67 or 80 or 81 or 82 => "theme-rain",
+        71 or 73 or 75 or 77 or 85 or 86 => "theme-snow",
+        95 or 96 or 99 => "theme-storm",
+        _ => "theme-cloudy"
+    };
 
     private static string MapWeatherCode(int code) => weatherCodes.TryGetValue(code, out var description) ? description : "Unknown";
 
@@ -272,8 +567,59 @@ else
         [JsonPropertyName("timezone")]
         public string? Timezone { get; set; }
 
+        [JsonPropertyName("current")]
+        public CurrentWeather? Current { get; set; }
+
+        [JsonPropertyName("hourly")]
+        public HourlyWeather? Hourly { get; set; }
+
         [JsonPropertyName("daily")]
         public DailyForecast? Daily { get; set; }
+    }
+
+    private class CurrentWeather
+    {
+        [JsonPropertyName("time")]
+        public string? Time { get; set; }
+
+        [JsonPropertyName("temperature_2m")]
+        public double Temperature { get; set; }
+
+        [JsonPropertyName("relative_humidity_2m")]
+        public int? Humidity { get; set; }
+
+        [JsonPropertyName("apparent_temperature")]
+        public double FeelsLike { get; set; }
+
+        [JsonPropertyName("is_day")]
+        public int IsDay { get; set; }
+
+        [JsonPropertyName("precipitation")]
+        public double Precipitation { get; set; }
+
+        [JsonPropertyName("weather_code")]
+        public int Code { get; set; }
+
+        [JsonPropertyName("wind_speed_10m")]
+        public double WindSpeed { get; set; }
+    }
+
+    private class HourlyWeather
+    {
+        [JsonPropertyName("time")]
+        public string[]? Time { get; set; }
+
+        [JsonPropertyName("temperature_2m")]
+        public double[] Temperature { get; set; } = Array.Empty<double>();
+
+        [JsonPropertyName("precipitation_probability")]
+        public int[] PrecipitationProbability { get; set; } = Array.Empty<int>();
+
+        [JsonPropertyName("weathercode")]
+        public int[] WeatherCode { get; set; } = Array.Empty<int>();
+
+        [JsonPropertyName("is_day")]
+        public int[] IsDay { get; set; } = Array.Empty<int>();
     }
 
     private class DailyForecast
@@ -281,21 +627,60 @@ else
         [JsonPropertyName("time")]
         public string[]? Time { get; set; }
 
+        [JsonPropertyName("weathercode")]
+        public int[] Weathercode { get; set; } = Array.Empty<int>();
+
         [JsonPropertyName("temperature_2m_max")]
         public double[] Temperature2mMax { get; set; } = Array.Empty<double>();
 
         [JsonPropertyName("temperature_2m_min")]
         public double[] Temperature2mMin { get; set; } = Array.Empty<double>();
 
-        [JsonPropertyName("weathercode")]
-        public int[] Weathercode { get; set; } = Array.Empty<int>();
+        [JsonPropertyName("precipitation_probability_max")]
+        public int[] PrecipitationProbabilityMax { get; set; } = Array.Empty<int>();
+
+        [JsonPropertyName("sunrise")]
+        public string[] Sunrise { get; set; } = Array.Empty<string>();
+
+        [JsonPropertyName("sunset")]
+        public string[] Sunset { get; set; } = Array.Empty<string>();
+    }
+
+    private class CurrentConditions
+    {
+        public DateTime Timestamp { get; set; }
+        public double TemperatureC { get; set; }
+        public double FeelsLikeC { get; set; }
+        public int? Humidity { get; set; }
+        public double PrecipitationMm { get; set; }
+        public double WindSpeedKmh { get; set; }
+        public int Code { get; set; }
+        public bool IsDay { get; set; }
+        public string Summary { get; set; } = string.Empty;
+        public double HighC { get; set; }
+        public double LowC { get; set; }
+        public string? Sunrise { get; set; }
+        public string? Sunset { get; set; }
+    }
+
+    private class HourlyForecast
+    {
+        public DateTime Time { get; set; }
+        public double TemperatureC { get; set; }
+        public int PrecipitationProbability { get; set; }
+        public int Code { get; set; }
+        public bool IsDay { get; set; }
     }
 
     public class WeatherForecast
     {
         public DateOnly Date { get; set; }
+        public int Code { get; set; }
         public double MinTempC { get; set; }
         public double MaxTempC { get; set; }
+        public int PrecipitationProbability { get; set; }
+        public string? Sunrise { get; set; }
+        public string? Sunset { get; set; }
         public string? Summary { get; set; }
         public int MinTempF => 32 + (int)(MinTempC / 0.5556);
         public int MaxTempF => 32 + (int)(MaxTempC / 0.5556);
