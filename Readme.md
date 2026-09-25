@@ -7,6 +7,8 @@ Live demo: https://mrunal77.github.io/WASM/
 This repository contains a Blazor WebAssembly app with multiple built-in utilities and experience-focused features:
 
 - **Weather Forecast** — live weather data via Open-Meteo and browser geolocation.
+- **Stopwatch** — centisecond stopwatch with start, pause, lap, and reset controls.
+- **Color Code** — color picker with HEX, RGB, HSL, and HSV conversion, copy buttons, recent colors, and contrast guidance.
 - **Map** — interactive Leaflet map with OpenStreetMap tiles and current location support.
 - **Calculator** — draggable standard and scientific calculator inside the browser.
 - **Air Quality** — latest PM2.5, PM10, and CO readings from Open-Meteo air-quality data.

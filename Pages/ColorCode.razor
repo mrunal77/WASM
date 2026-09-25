@@ -1,0 +1,454 @@
+@page "/color-code"
+@using System.Globalization
+@inject IJSRuntime JS
+
+<PageTitle>Color Code</PageTitle>
+
+<h1>Color Code</h1>
+<p class="text-muted">Choose a color, explore its formats, and find accessible text colors that work with it.</p>
+
+<div class="row g-4 align-items-start">
+    <div class="col-xl-5">
+        <section class="color-preview" style="background-color: @HexValue; color: @PreviewTextColor" aria-label="Selected color @HexValue">
+            <span class="preview-label">Selected color</span>
+            <code class="preview-code">@HexValue</code>
+            <span class="preview-contrast">@PreviewContrast.ToString("0.00", CultureInfo.InvariantCulture):1 contrast with preferred text</span>
+        </section>
+
+        <section class="panel-card mt-3" aria-labelledby="recent-colors-title">
+            <div class="panel-heading">
+                <h2 id="recent-colors-title" class="h5 mb-0">Recent colors</h2>
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ChooseRandomColor">
+                    <i class="fa-solid fa-shuffle me-1" aria-hidden="true"></i> Random
+                </button>
+            </div>
+            <div class="swatch-list">
+                @foreach (var color in recentColors)
+                {
+                    <button type="button"
+                            class="color-swatch @(color == HexValue ? "is-selected" : string.Empty)"
+                            style="background-color: @color"
+                            @onclick="() => SelectRecentColor(color)"
+                            title="Select @color"
+                            aria-label="Select color @color">
+                        @if (color == HexValue)
+                        {
+                            <i class="fa-solid fa-check" aria-hidden="true"></i>
+                        }
+                    </button>
+                }
+            </div>
+        </section>
+    </div>
+
+    <div class="col-xl-7">
+        <section class="panel-card" aria-labelledby="picker-title">
+            <div class="panel-heading">
+                <h2 id="picker-title" class="h5 mb-0">Picker</h2>
+                <span class="format-badge">RGB</span>
+            </div>
+            <div class="panel-body">
+                <div class="native-picker-row">
+                    <label for="native-color-picker">Choose a color</label>
+                    <input id="native-color-picker"
+                           class="native-color-picker"
+                           type="color"
+                           value="@HexValue"
+                           @oninput="OnNativeColorInput"
+                           aria-label="Choose a color" />
+                </div>
+
+                <div class="hex-input-row">
+                    <label for="hex-input">HEX code</label>
+                    <div class="input-group">
+                        <span class="input-group-text" aria-hidden="true">#</span>
+                        <input id="hex-input"
+                               class="form-control @(hexError is null ? string.Empty : "is-invalid")"
+                               type="text"
+                               value="@hexInput"
+                               @oninput="OnHexInput"
+                               @onchange="ApplyHexInput"
+                               @onkeydown="HandleHexKeyDown"
+                               maxlength="7"
+                               autocomplete="off"
+                               spellcheck="false"
+                               aria-describedby="hex-help" />
+                    </div>
+                    <button type="button" class="btn btn-primary" @onclick="ApplyHexInputValue">Apply</button>
+                </div>
+                <div id="hex-help" class="form-text @(hexError is null ? string.Empty : "text-danger")">
+                    @(hexError ?? "Use a 3-digit or 6-digit HEX code.")
+                </div>
+
+                <div class="rgb-controls">
+                    <div class="rgb-control">
+                        <div class="control-label">
+                            <label for="red-range">Red</label>
+                            <output for="red-range">@red</output>
+                        </div>
+                        <input id="red-range" class="form-range" type="range" min="0" max="255" step="1" value="@red" @oninput="OnRedInput" />
+                    </div>
+                    <div class="rgb-control">
+                        <div class="control-label">
+                            <label for="green-range">Green</label>
+                            <output for="green-range">@green</output>
+                        </div>
+                        <input id="green-range" class="form-range" type="range" min="0" max="255" step="1" value="@green" @oninput="OnGreenInput" />
+                    </div>
+                    <div class="rgb-control">
+                        <div class="control-label">
+                            <label for="blue-range">Blue</label>
+                            <output for="blue-range">@blue</output>
+                        </div>
+                        <input id="blue-range" class="form-range" type="range" min="0" max="255" step="1" value="@blue" @oninput="OnBlueInput" />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel-card mt-3" aria-labelledby="codes-title">
+            <div class="panel-heading">
+                <h2 id="codes-title" class="h5 mb-0">Color codes</h2>
+            </div>
+            <div class="code-list">
+                <div class="code-row">
+                    <div>
+                        <span class="code-name">HEX</span>
+                        <code>@HexValue</code>
+                    </div>
+                    <button type="button" class="copy-button" @onclick="() => CopyCodeAsync(HexValue)" title="Copy HEX code" aria-label="Copy HEX code">
+                        <i class="fa-regular fa-copy" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="code-row">
+                    <div>
+                        <span class="code-name">RGB</span>
+                        <code>@RgbValue</code>
+                    </div>
+                    <button type="button" class="copy-button" @onclick="() => CopyCodeAsync(RgbValue)" title="Copy RGB code" aria-label="Copy RGB code">
+                        <i class="fa-regular fa-copy" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="code-row">
+                    <div>
+                        <span class="code-name">HSL</span>
+                        <code>@HslValue</code>
+                    </div>
+                    <button type="button" class="copy-button" @onclick="() => CopyCodeAsync(HslValue)" title="Copy HSL code" aria-label="Copy HSL code">
+                        <i class="fa-regular fa-copy" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="code-row">
+                    <div>
+                        <span class="code-name">HSV</span>
+                        <code>@HsvValue</code>
+                    </div>
+                    <button type="button" class="copy-button" @onclick="() => CopyCodeAsync(HsvValue)" title="Copy HSV code" aria-label="Copy HSV code">
+                        <i class="fa-regular fa-copy" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel-card mt-3" aria-labelledby="contrast-title">
+            <div class="panel-heading">
+                <h2 id="contrast-title" class="h5 mb-0">Contrast</h2>
+                <span class="format-badge">WCAG</span>
+            </div>
+            <div class="contrast-grid">
+                <div class="contrast-value">
+                    <span>White text</span>
+                    <strong>@FormatContrast(WhiteContrast)</strong>
+                </div>
+                <div class="contrast-value">
+                    <span>Black text</span>
+                    <strong>@FormatContrast(BlackContrast)</strong>
+                </div>
+                <div class="contrast-value preferred">
+                    <span>Preferred text</span>
+                    <strong>@PreviewTextColor</strong>
+                </div>
+            </div>
+        </section>
+
+        <div class="copy-status @(copyError ? "is-error" : string.Empty)" role="status" aria-live="polite">
+            @if (copyStatus is not null)
+            {
+                <i class="fa-solid @(copyError ? "fa-circle-exclamation" : "fa-circle-check") me-1" aria-hidden="true"></i>@copyStatus
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private readonly List<string> recentColors = new()
+    {
+        "#6366F1",
+        "#EF4444",
+        "#22C55E",
+        "#0EA5E9",
+        "#F59E0B",
+        "#A855F7"
+    };
+
+    private int red = 99;
+    private int green = 102;
+    private int blue = 241;
+    private string hexInput = "#6366F1";
+    private string? hexError;
+    private string? copyStatus;
+    private bool copyError;
+
+    private string HexValue => $"#{red:X2}{green:X2}{blue:X2}";
+    private string RgbValue => $"rgb({red}, {green}, {blue})";
+    private HslColor Hsl => ToHsl(red, green, blue);
+    private HsvColor Hsv => ToHsv(red, green, blue);
+    private string HslValue => $"hsl({Math.Round(Hsl.Hue)}, {Math.Round(Hsl.Saturation)}%, {Math.Round(Hsl.Lightness)}%)";
+    private string HsvValue => $"hsv({Math.Round(Hsv.Hue)}, {Math.Round(Hsv.Saturation)}%, {Math.Round(Hsv.Value)}%)";
+    private double Luminance => RelativeLuminance(red, green, blue);
+    private double WhiteContrast => ContrastRatio(Luminance, 1);
+    private double BlackContrast => ContrastRatio(Luminance, 0);
+    private double PreviewContrast => Math.Max(WhiteContrast, BlackContrast);
+    private string PreviewTextColor => WhiteContrast >= BlackContrast ? "#FFFFFF" : "#111111";
+
+    private sealed record HslColor(double Hue, double Saturation, double Lightness);
+    private sealed record HsvColor(double Hue, double Saturation, double Value);
+
+    private void OnNativeColorInput(ChangeEventArgs args)
+    {
+        if (TryParseHex(args.Value?.ToString(), out var newRed, out var newGreen, out var newBlue))
+        {
+            SetColor(newRed, newGreen, newBlue);
+        }
+    }
+
+    private void OnRedInput(ChangeEventArgs args)
+    {
+        if (TryParseChannel(args.Value, out var value))
+        {
+            SetColor(value, green, blue);
+        }
+    }
+
+    private void OnGreenInput(ChangeEventArgs args)
+    {
+        if (TryParseChannel(args.Value, out var value))
+        {
+            SetColor(red, value, blue);
+        }
+    }
+
+    private void OnBlueInput(ChangeEventArgs args)
+    {
+        if (TryParseChannel(args.Value, out var value))
+        {
+            SetColor(red, green, value);
+        }
+    }
+
+    private void OnHexInput(ChangeEventArgs args)
+    {
+        hexInput = args.Value?.ToString() ?? string.Empty;
+        hexError = null;
+    }
+
+    private void ApplyHexInput(ChangeEventArgs args)
+    {
+        ApplyHex(args.Value?.ToString());
+    }
+
+    private void ApplyHexInputValue()
+    {
+        ApplyHex(hexInput);
+    }
+
+    private void HandleHexKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            ApplyHex(hexInput);
+        }
+    }
+
+    private void ApplyHex(string? value)
+    {
+        hexInput = value?.Trim() ?? string.Empty;
+        if (TryParseHex(hexInput, out var newRed, out var newGreen, out var newBlue))
+        {
+            SetColor(newRed, newGreen, newBlue);
+        }
+        else
+        {
+            hexError = "Enter a valid 3-digit or 6-digit HEX color.";
+        }
+    }
+
+    private void SelectRecentColor(string color)
+    {
+        if (TryParseHex(color, out var newRed, out var newGreen, out var newBlue))
+        {
+            SetColor(newRed, newGreen, newBlue, remember: false);
+        }
+    }
+
+    private void ChooseRandomColor()
+    {
+        var value = Random.Shared.Next(0, 0x1000000);
+        SetColor((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF);
+    }
+
+    private void SetColor(int newRed, int newGreen, int newBlue, bool remember = true)
+    {
+        red = Math.Clamp(newRed, 0, 255);
+        green = Math.Clamp(newGreen, 0, 255);
+        blue = Math.Clamp(newBlue, 0, 255);
+        hexInput = HexValue;
+        hexError = null;
+        copyStatus = null;
+        copyError = false;
+
+        if (remember)
+        {
+            RememberColor(HexValue);
+        }
+    }
+
+    private void RememberColor(string color)
+    {
+        recentColors.RemoveAll(value => value == color);
+        recentColors.Insert(0, color);
+
+        while (recentColors.Count > 10)
+        {
+            recentColors.RemoveAt(recentColors.Count - 1);
+        }
+    }
+
+    private async Task CopyCodeAsync(string value)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
+            copyStatus = $"Copied {value}";
+            copyError = false;
+        }
+        catch (JSException)
+        {
+            copyStatus = "Clipboard access is unavailable. Select the code and copy it manually.";
+            copyError = true;
+        }
+    }
+
+    private string FormatContrast(double ratio)
+    {
+        return $"{ratio.ToString("0.00", CultureInfo.InvariantCulture)}:1";
+    }
+
+    private static bool TryParseChannel(object? value, out int channel)
+    {
+        return int.TryParse(value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out channel);
+    }
+
+    private static bool TryParseHex(string? value, out int parsedRed, out int parsedGreen, out int parsedBlue)
+    {
+        parsedRed = 0;
+        parsedGreen = 0;
+        parsedBlue = 0;
+
+        var normalized = value?.Trim().TrimStart('#') ?? string.Empty;
+        if (normalized.Length == 3)
+        {
+            normalized = string.Concat(normalized[0], normalized[0], normalized[1], normalized[1], normalized[2], normalized[2]);
+        }
+
+        if (normalized.Length != 6 ||
+            !int.TryParse(normalized[..2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out parsedRed) ||
+            !int.TryParse(normalized[2..4], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out parsedGreen) ||
+            !int.TryParse(normalized[4..6], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out parsedBlue))
+        {
+            parsedRed = 0;
+            parsedGreen = 0;
+            parsedBlue = 0;
+            return false;
+        }
+
+        return true;
+    }
+
+    private static HslColor ToHsl(int red, int green, int blue)
+    {
+        var r = red / 255d;
+        var g = green / 255d;
+        var b = blue / 255d;
+        var max = Math.Max(r, Math.Max(g, b));
+        var min = Math.Min(r, Math.Min(g, b));
+        var delta = max - min;
+        var lightness = (max + min) / 2;
+        var hue = 0d;
+        var saturation = 0d;
+
+        if (delta > 0)
+        {
+            saturation = delta / (1 - Math.Abs(2 * lightness - 1));
+            hue = max switch
+            {
+                var value when value == r => 60 * (((g - b) / delta) % 6),
+                var value when value == g => 60 * (((b - r) / delta) + 2),
+                _ => 60 * (((r - g) / delta) + 4)
+            };
+        }
+
+        if (hue < 0)
+        {
+            hue += 360;
+        }
+
+        return new HslColor(hue, saturation * 100, lightness * 100);
+    }
+
+    private static HsvColor ToHsv(int red, int green, int blue)
+    {
+        var r = red / 255d;
+        var g = green / 255d;
+        var b = blue / 255d;
+        var max = Math.Max(r, Math.Max(g, b));
+        var min = Math.Min(r, Math.Min(g, b));
+        var delta = max - min;
+        var hue = 0d;
+
+        if (delta > 0)
+        {
+            hue = max switch
+            {
+                var value when value == r => 60 * (((g - b) / delta) % 6),
+                var value when value == g => 60 * (((b - r) / delta) + 2),
+                _ => 60 * (((r - g) / delta) + 4)
+            };
+        }
+
+        if (hue < 0)
+        {
+            hue += 360;
+        }
+
+        return new HsvColor(hue, max == 0 ? 0 : delta / max * 100, max * 100);
+    }
+
+    private static double RelativeLuminance(int red, int green, int blue)
+    {
+        static double Linearize(int channel)
+        {
+            var value = channel / 255d;
+            return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
+        }
+
+        return (0.2126 * Linearize(red)) + (0.7152 * Linearize(green)) + (0.0722 * Linearize(blue));
+    }
+
+    private static double ContrastRatio(double first, double second)
+    {
+        var lighter = Math.Max(first, second);
+        var darker = Math.Min(first, second);
+        return (lighter + 0.05) / (darker + 0.05);
+    }
+}

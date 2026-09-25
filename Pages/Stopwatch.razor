@@ -1,0 +1,174 @@
+@page "/stopwatch"
+@using System.Globalization
+@implements IDisposable
+
+<PageTitle>Stopwatch</PageTitle>
+
+<h1>Stopwatch</h1>
+<p class="text-muted">Measure elapsed time, record laps, and keep going with accurate centisecond updates.</p>
+
+<div class="stopwatch-shell">
+    <section class="stopwatch-card" aria-label="Stopwatch">
+        <div class="stopwatch-heading">
+            <span class="stopwatch-status @(IsRunning ? "is-running" : string.Empty)">
+                <span class="status-dot" aria-hidden="true"></span>
+                @(IsRunning ? "Running" : ElapsedTime > TimeSpan.Zero ? "Paused" : "Ready")
+            </span>
+            <i class="fa-regular fa-clock" aria-hidden="true"></i>
+        </div>
+
+        <div class="time-display" role="timer" aria-label="@FormattedTime">@FormattedTime</div>
+
+        <div class="stopwatch-controls" role="group" aria-label="Stopwatch controls">
+            <button type="button" class="btn btn-primary" @onclick="Start" disabled="@IsRunning">
+                <i class="fa-solid fa-play me-1" aria-hidden="true"></i> Start
+            </button>
+            <button type="button" class="btn btn-warning" @onclick="Pause" disabled="@(!IsRunning)">
+                <i class="fa-solid fa-pause me-1" aria-hidden="true"></i> Pause
+            </button>
+            <button type="button" class="btn btn-outline-secondary" @onclick="AddLap" disabled="@(!IsRunning)">
+                <i class="fa-solid fa-flag me-1" aria-hidden="true"></i> Lap
+            </button>
+            <button type="button" class="btn btn-outline-danger" @onclick="Reset" disabled="@(ElapsedTime == TimeSpan.Zero && laps.Count == 0)">
+                <i class="fa-solid fa-rotate-left me-1" aria-hidden="true"></i> Reset
+            </button>
+        </div>
+    </section>
+
+    <section class="laps-card" aria-labelledby="laps-title">
+        <div class="laps-heading">
+            <h2 id="laps-title" class="h5 mb-0">Laps</h2>
+            @if (laps.Count > 0)
+            {
+                <span class="badge rounded-pill bg-secondary">@laps.Count</span>
+            }
+        </div>
+
+        @if (laps.Count == 0)
+        {
+            <div class="empty-laps">
+                <i class="fa-solid fa-flag-checkered" aria-hidden="true"></i>
+                <p class="mb-0">Lap times will appear here.</p>
+            </div>
+        }
+        else
+        {
+            <ol class="lap-list" aria-live="polite">
+                @for (var index = 0; index < laps.Count; index++)
+                {
+                    var lapNumber = laps.Count - index;
+                    var lap = laps[index];
+                    <li class="lap-row">
+                        <span class="lap-number">Lap @lapNumber.ToString("00", CultureInfo.InvariantCulture)</span>
+                        <span class="lap-time">@FormatTime(lap.Elapsed)</span>
+                        <span class="lap-split">+ @FormatTime(lap.Split)</span>
+                    </li>
+                }
+            </ol>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly List<LapTime> laps = new();
+    private System.Threading.Timer? timer;
+    private TimeSpan accumulatedTime;
+    private TimeSpan displayedTime;
+    private long? startTimestamp;
+    private bool disposed;
+
+    private bool IsRunning => startTimestamp is not null;
+    private TimeSpan ElapsedTime => GetElapsedTime();
+    private string FormattedTime => FormatTime(displayedTime);
+
+    private sealed record LapTime(TimeSpan Elapsed, TimeSpan Split);
+
+    private void Start()
+    {
+        if (IsRunning)
+        {
+            return;
+        }
+
+        startTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
+        displayedTime = GetElapsedTime();
+        timer = new System.Threading.Timer(
+            _ => _ = InvokeAsync(() =>
+            {
+                if (!disposed)
+                {
+                    displayedTime = GetElapsedTime();
+                    StateHasChanged();
+                }
+            }),
+            null,
+            TimeSpan.Zero,
+            TimeSpan.FromMilliseconds(33));
+    }
+
+    private void Pause()
+    {
+        if (!IsRunning)
+        {
+            return;
+        }
+
+        displayedTime = GetElapsedTime();
+        accumulatedTime = displayedTime;
+        startTimestamp = null;
+        StopTimer();
+    }
+
+    private void AddLap()
+    {
+        if (!IsRunning)
+        {
+            return;
+        }
+
+        var currentTime = GetElapsedTime();
+        var previousLapTime = laps.Count == 0 ? TimeSpan.Zero : laps[0].Elapsed;
+        laps.Insert(0, new LapTime(currentTime, currentTime - previousLapTime));
+    }
+
+    private void Reset()
+    {
+        StopTimer();
+        accumulatedTime = TimeSpan.Zero;
+        displayedTime = TimeSpan.Zero;
+        startTimestamp = null;
+        laps.Clear();
+    }
+
+    private TimeSpan GetElapsedTime()
+    {
+        return startTimestamp is long timestamp
+            ? accumulatedTime + System.Diagnostics.Stopwatch.GetElapsedTime(timestamp)
+            : accumulatedTime;
+    }
+
+    private static string FormatTime(TimeSpan time)
+    {
+        var totalCentiseconds = (long)Math.Round(time.TotalSeconds * 100, MidpointRounding.AwayFromZero);
+        var hours = totalCentiseconds / 3_600_000;
+        var minutes = totalCentiseconds / 60_000 % 60;
+        var seconds = totalCentiseconds / 1_000 % 60;
+        var centiseconds = totalCentiseconds % 100;
+
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{hours:00}:{minutes:00}:{seconds:00}.{centiseconds:00}");
+    }
+
+    private void StopTimer()
+    {
+        timer?.Dispose();
+        timer = null;
+    }
+
+    public void Dispose()
+    {
+        disposed = true;
+        StopTimer();
+    }
+}
