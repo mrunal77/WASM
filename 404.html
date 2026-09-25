@@ -29,10 +29,18 @@
 
 <body>
     <div id="app">
-        <svg class="loading-progress">
-            <circle r="40%" cx="50%" cy="50%" />
-            <circle r="40%" cx="50%" cy="50%" />
-        </svg>
+        <div class="loading-wave" role="status" aria-label="Loading WASM apps">
+            <span class="visually-hidden">Loading</span>
+            <span style="--dot-index: 0;" aria-hidden="true"></span>
+            <span style="--dot-index: 1;" aria-hidden="true"></span>
+            <span style="--dot-index: 2;" aria-hidden="true"></span>
+            <span style="--dot-index: 3;" aria-hidden="true"></span>
+            <span style="--dot-index: 4;" aria-hidden="true"></span>
+            <span style="--dot-index: 5;" aria-hidden="true"></span>
+            <span style="--dot-index: 6;" aria-hidden="true"></span>
+            <span style="--dot-index: 7;" aria-hidden="true"></span>
+            <span style="--dot-index: 8;" aria-hidden="true"></span>
+        </div>
         <div class="loading-progress-text"></div>
     </div>
 
