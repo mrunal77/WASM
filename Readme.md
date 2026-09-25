@@ -13,7 +13,7 @@ This repository contains a Blazor WebAssembly app with multiple built-in utiliti
 - **Map** — interactive Leaflet map with OpenStreetMap tiles and current location support.
 - **Calculator** — draggable standard and scientific calculator inside the browser.
 - **Air Quality** — latest PM2.5, PM10, and CO readings from Open-Meteo air-quality data.
-- **Currency Converter** — simple exchange rate conversion using exchangerate.host.
+- **Currency Converter** — simple exchange rate conversion using the keyless ExchangeRate-API endpoint.
 - **Image Gallery** — browser webcam capture and photo preview.
 - **Function Grapher** — simple function plotter built in SVG.
 - **Code Snapshot** — code-to-image generator: syntax-highlighted code cards with 23 languages and 9 themes, downloadable as PNG or copyable as an image/code.

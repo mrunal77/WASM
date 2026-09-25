@@ -1,4 +1,5 @@
 @page "/currency"
+@using System.Text.Json.Serialization
 @inject HttpClient Http
 
 <PageTitle>Currency</PageTitle>
@@ -20,11 +21,21 @@
         </select>
     </div>
     <div class="col-md-2">
-        <button class="btn btn-primary" @onclick="Convert">Convert</button>
+        <button class="btn btn-primary" @onclick="Convert" disabled="@isLoading">
+            @if (isLoading)
+            {
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            }
+            Convert
+        </button>
     </div>
 </div>
 
-@if (converted != null)
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+else if (converted != null)
 {
     <div class="alert alert-success">@amount @baseCurrency = @converted.Value.ToString("F4") @targetCurrency</div>
 }
@@ -34,14 +45,54 @@
     private string baseCurrency = "USD";
     private string targetCurrency = "EUR";
     private decimal? converted;
+    private string? errorMessage;
+    private bool isLoading;
     private List<string> currencies = new() { "USD","EUR","GBP","INR","JPY","AUD","CAD" };
 
     private async Task Convert()
     {
-        var url = $"https://api.exchangerate.host/convert?from={baseCurrency}&to={targetCurrency}&amount={amount}";
-        var resp = await Http.GetFromJsonAsync<ExchangeResp>(url);
-        converted = resp?.Result;
+        converted = null;
+        errorMessage = null;
+        isLoading = true;
+
+        try
+        {
+            var url = $"https://open.er-api.com/v6/latest/{Uri.EscapeDataString(baseCurrency)}";
+            var response = await Http.GetFromJsonAsync<ExchangeRatesResponse>(url);
+
+            if (response?.Result != "success" || response.Rates is null)
+            {
+                errorMessage = "Exchange rates are unavailable right now. Please try again.";
+                return;
+            }
+
+            if (!response.Rates.TryGetValue(targetCurrency, out var rate))
+            {
+                errorMessage = $"The {targetCurrency} exchange rate was not available.";
+                return;
+            }
+
+            converted = amount * rate;
+        }
+        catch (Exception exception) when (exception is HttpRequestException || exception is NotSupportedException || exception is System.Text.Json.JsonException || exception is TaskCanceledException)
+        {
+            errorMessage = "Unable to reach the exchange-rate service. Please check your connection and try again.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
-    private class ExchangeResp { public decimal Result { get; set; } }
+    private class ExchangeRatesResponse
+    {
+        [JsonPropertyName("result")]
+        public string? Result { get; set; }
+
+        [JsonPropertyName("base_code")]
+        public string? BaseCode { get; set; }
+
+        [JsonPropertyName("rates")]
+        public Dictionary<string, decimal>? Rates { get; set; }
+    }
 }
