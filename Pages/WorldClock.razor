@@ -1,0 +1,447 @@
+@page "/world-clock"
+@using System.Globalization
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>World Clock</PageTitle>
+
+<h1>World Clock</h1>
+<p class="text-muted">Compare live local times across cities with automatic daylight-saving adjustments.</p>
+
+@if (!isReady)
+{
+    <div class="clock-loading" role="status">
+        <span class="spinner-border" aria-hidden="true"></span>
+        <span>Loading world clocks…</span>
+    </div>
+}
+else if (errorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        <i class="fa-solid fa-circle-exclamation me-1" aria-hidden="true"></i>
+        @errorMessage
+    </div>
+}
+else
+{
+    <section class="local-clock-card" aria-label="Your local time">
+        <div class="local-clock-copy">
+            <span class="local-label"><i class="fa-solid fa-location-dot me-1" aria-hidden="true"></i> Your local time</span>
+            <div class="local-time" role="timer" aria-label="@LocalTimeDisplay">@LocalTimeDisplay</div>
+            <div class="local-date">@LocalDateDisplay</div>
+        </div>
+        <div class="local-zone">
+            <i class="fa-solid fa-earth-americas" aria-hidden="true"></i>
+            <span>Time zone</span>
+            <strong title="@localTimeZone">@FriendlyTimeZone(localTimeZone)</strong>
+            <span class="local-abbreviation">@LocalAbbreviation</span>
+        </div>
+    </section>
+
+    <section class="add-clock-panel" aria-labelledby="add-clock-title">
+        <div class="add-clock-heading">
+            <div>
+                <h2 id="add-clock-title" class="h5 mb-1">Add a city</h2>
+                <p class="text-muted mb-0">Choose up to eight additional cities.</p>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="RestoreDefaultClocksAsync" disabled="@HasDefaultCities">
+                <i class="fa-solid fa-rotate-left me-1" aria-hidden="true"></i> Reset cities
+            </button>
+        </div>
+
+        <div class="city-search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <label class="visually-hidden" for="city-search">Search cities</label>
+            <input id="city-search"
+                   class="form-control"
+                   type="search"
+                   value="@searchQuery"
+                   @oninput="OnSearchInput"
+                   placeholder="Search by city or country"
+                   autocomplete="off" />
+        </div>
+
+        @{
+            var matchingCities = FilteredCities.ToArray();
+        }
+        @if (matchingCities.Length == 0)
+        {
+            <div class="no-city-results">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <span>@(string.IsNullOrWhiteSpace(searchQuery) ? "All available cities are already shown." : "No matching cities found.")</span>
+            </div>
+        }
+        else
+        {
+            <div class="city-results">
+                @foreach (var city in matchingCities)
+                {
+                    <button type="button"
+                            class="city-option"
+                            @onclick="() => AddClockAsync(city)"
+                            disabled="@(!CanAdd(city))"
+                            title="@(CanAdd(city) ? $"Add {city.City}" : $"{city.City} is already added or the clock limit was reached")">
+                        <span class="city-code" style="--city-accent: @city.Accent">@city.Code</span>
+                        <span class="city-copy">
+                            <strong>@city.City</strong>
+                            <small>@city.Country</small>
+                        </span>
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                    </button>
+                }
+            </div>
+        }
+    </section>
+
+    <div class="clocks-heading">
+        <div>
+            <h2 class="h4 mb-1">World clocks</h2>
+            <p class="text-muted mb-0">@clocks.Count of @MaxClocks selected</p>
+        </div>
+        <span class="live-badge"><span aria-hidden="true"></span> Live</span>
+    </div>
+
+    @if (clocks.Count == 0)
+    {
+        <div class="empty-clocks">
+            <i class="fa-solid fa-earth-americas" aria-hidden="true"></i>
+            <h2 class="h5">No world clocks selected</h2>
+            <p class="text-muted mb-0">Add a city above or restore the default selection.</p>
+        </div>
+    }
+    else
+    {
+        <div class="clock-grid">
+            @foreach (var clock in clocks)
+            {
+                <article class="world-clock-card" style="--zone-accent: @clock.Option.Accent" aria-label="@clock.Option.City local time">
+                    <div class="clock-card-heading">
+                        <div>
+                            <span class="clock-code">@clock.Option.Code</span>
+                            <h3 class="h5 mb-0">@clock.Option.City</h3>
+                            <p class="mb-0">@clock.Option.Country</p>
+                        </div>
+                        <button type="button"
+                                class="remove-clock"
+                                @onclick="() => RemoveClock(clock)"
+                                title="Remove @clock.Option.City"
+                                aria-label="Remove @clock.Option.City clock">
+                            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    @if (clock.Current is { } current)
+                    {
+                        var hourAngle = GetHourAngle(current);
+                        var minuteAngle = current.MinuteValue * 6 + current.SecondValue * .1;
+                        var secondAngle = current.SecondValue * 6;
+
+                        <div class="clock-body">
+                            <div class="analog-clock" aria-hidden="true">
+                                <span class="clock-hand hour-hand" style="transform: translateX(-50%) rotate(@hourAngle deg)"></span>
+                                <span class="clock-hand minute-hand" style="transform: translateX(-50%) rotate(@minuteAngle deg)"></span>
+                                <span class="clock-hand second-hand" style="transform: translateX(-50%) rotate(@secondAngle deg)"></span>
+                                <span class="clock-center"></span>
+                            </div>
+                            <div class="digital-clock">
+                                <span class="digital-time">@FormatTime(current)</span>
+                                <span class="digital-date">@FormatDate(current)</span>
+                            </div>
+                        </div>
+
+                        <div class="clock-card-footer">
+                            <div>
+                                <span class="timezone-label">@current.Abbreviation · @current.OffsetLabel</span>
+                                <span class="relative-time">@FormatRelativeTime(current)</span>
+                            </div>
+                            <span class="day-status @(IsDaytime(current) ? "is-day" : "is-night")">
+                                <i class="fa-solid @(IsDaytime(current) ? "fa-sun" : "fa-moon")" aria-hidden="true"></i>
+                                @(IsDaytime(current) ? "Day" : "Night")
+                            </span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="clock-placeholder" role="status">
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            <span>Updating…</span>
+                        </div>
+                    }
+                </article>
+            }
+        </div>
+    }
+}
+
+@code {
+    private const int MaxClocks = 8;
+
+    private static readonly string[] DefaultTimeZoneIds =
+    [
+        "America/New_York",
+        "Europe/London",
+        "Asia/Dubai",
+        "Asia/Tokyo",
+        "Australia/Sydney"
+    ];
+
+    private static readonly ZoneOption[] AvailableCities =
+    [
+        new("New York", "United States", "America/New_York", "NYC", "#3b82f6"),
+        new("Los Angeles", "United States", "America/Los_Angeles", "LAX", "#f97316"),
+        new("Chicago", "United States", "America/Chicago", "CHI", "#8b5cf6"),
+        new("Denver", "United States", "America/Denver", "DEN", "#0ea5e9"),
+        new("Anchorage", "United States", "America/Anchorage", "ANC", "#14b8a6"),
+        new("Honolulu", "United States", "Pacific/Honolulu", "HNL", "#06b6d4"),
+        new("Toronto", "Canada", "America/Toronto", "YYZ", "#ef4444"),
+        new("Mexico City", "Mexico", "America/Mexico_City", "MEX", "#22c55e"),
+        new("São Paulo", "Brazil", "America/Sao_Paulo", "GRU", "#eab308"),
+        new("Buenos Aires", "Argentina", "America/Argentina/Buenos_Aires", "BUE", "#60a5fa"),
+        new("London", "United Kingdom", "Europe/London", "LON", "#6366f1"),
+        new("Paris", "France", "Europe/Paris", "PAR", "#a855f7"),
+        new("Berlin", "Germany", "Europe/Berlin", "BER", "#f59e0b"),
+        new("Reykjavík", "Iceland", "Atlantic/Reykjavik", "REY", "#38bdf8"),
+        new("Lagos", "Nigeria", "Africa/Lagos", "LOS", "#10b981"),
+        new("Cairo", "Egypt", "Africa/Cairo", "CAI", "#f43f5e"),
+        new("Johannesburg", "South Africa", "Africa/Johannesburg", "JNB", "#84cc16"),
+        new("Dubai", "United Arab Emirates", "Asia/Dubai", "DXB", "#f97316"),
+        new("Mumbai", "India", "Asia/Kolkata", "BOM", "#f59e0b"),
+        new("Singapore", "Singapore", "Asia/Singapore", "SIN", "#ef4444"),
+        new("Bangkok", "Thailand", "Asia/Bangkok", "BKK", "#8b5cf6"),
+        new("Tokyo", "Japan", "Asia/Tokyo", "TYO", "#ec4899"),
+        new("Seoul", "South Korea", "Asia/Seoul", "ICN", "#3b82f6"),
+        new("Perth", "Australia", "Australia/Perth", "PER", "#22c55e"),
+        new("Sydney", "Australia", "Australia/Sydney", "SYD", "#0ea5e9"),
+        new("Auckland", "New Zealand", "Pacific/Auckland", "AKL", "#6366f1"),
+        new("UTC", "Coordinated Universal Time", "UTC", "UTC", "#64748b")
+    ];
+
+    private readonly List<ClockEntry> clocks = new();
+    private IJSObjectReference? clockModule;
+    private System.Threading.Timer? timer;
+    private WorldTime? localTime;
+    private string localTimeZone = "UTC";
+    private string searchQuery = string.Empty;
+    private string? errorMessage;
+    private bool isReady;
+    private bool disposed;
+    private int refreshInProgress;
+
+    private string LocalTimeDisplay => FormatTime(localTime);
+    private string LocalDateDisplay => localTime is null ? "Loading date…" : FormatDate(localTime);
+    private string LocalAbbreviation => localTime?.Abbreviation ?? "UTC";
+    private bool HasDefaultCities => clocks.Count == DefaultTimeZoneIds.Count(timeZone => !string.Equals(timeZone, localTimeZone, StringComparison.OrdinalIgnoreCase))
+        && DefaultTimeZoneIds
+            .Where(timeZone => !string.Equals(timeZone, localTimeZone, StringComparison.OrdinalIgnoreCase))
+            .All(timeZone => clocks.Any(clock => string.Equals(clock.Option.TimeZone, timeZone, StringComparison.OrdinalIgnoreCase)));
+
+    private IEnumerable<ZoneOption> FilteredCities => AvailableCities
+        .Where(city => !string.Equals(city.TimeZone, localTimeZone, StringComparison.OrdinalIgnoreCase))
+        .Where(city => !clocks.Any(clock => string.Equals(clock.Option.TimeZone, city.TimeZone, StringComparison.OrdinalIgnoreCase)))
+        .Where(city => string.IsNullOrWhiteSpace(searchQuery)
+            || city.City.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)
+            || city.Country.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)
+            || city.Code.Contains(searchQuery, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(city => city.City)
+        .Take(8);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            clockModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/world-clock.js");
+            localTimeZone = await clockModule.InvokeAsync<string>("getLocalTimeZone");
+            InitializeDefaultClocks();
+            await RefreshClocksAsync();
+            timer = new System.Threading.Timer(
+                _ => _ = InvokeAsync(RefreshClocksAsync),
+                null,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(1));
+        }
+        catch (JSException)
+        {
+            errorMessage = "Your browser could not load timezone information. Please refresh and try again.";
+        }
+        finally
+        {
+            isReady = true;
+            StateHasChanged();
+        }
+    }
+
+    private void InitializeDefaultClocks()
+    {
+        clocks.Clear();
+        foreach (var timeZone in DefaultTimeZoneIds)
+        {
+            var option = AvailableCities.FirstOrDefault(city => city.TimeZone == timeZone);
+            if (option is not null && !string.Equals(option.TimeZone, localTimeZone, StringComparison.OrdinalIgnoreCase))
+            {
+                clocks.Add(new ClockEntry(option));
+            }
+        }
+    }
+
+    private async Task RefreshClocksAsync()
+    {
+        if (disposed || clockModule is null || Interlocked.Exchange(ref refreshInProgress, 1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            var timeZones = new[] { localTimeZone }.Concat(clocks.Select(clock => clock.Option.TimeZone)).ToArray();
+            var times = await clockModule.InvokeAsync<WorldTime[]>("getWorldTimes", new object?[] { timeZones });
+            if (disposed || times.Length == 0)
+            {
+                return;
+            }
+
+            localTime = times[0];
+            for (var index = 0; index < clocks.Count; index++)
+            {
+                clocks[index].Current = times[index + 1];
+            }
+        }
+        catch (JSException)
+        {
+            errorMessage = "The world clocks could not be updated. Please refresh and try again.";
+        }
+        finally
+        {
+            Interlocked.Exchange(ref refreshInProgress, 0);
+        }
+    }
+
+    private bool CanAdd(ZoneOption city)
+    {
+        return clocks.Count < MaxClocks
+            && !clocks.Any(clock => string.Equals(clock.Option.TimeZone, city.TimeZone, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task AddClockAsync(ZoneOption city)
+    {
+        if (!CanAdd(city))
+        {
+            return;
+        }
+
+        clocks.Add(new ClockEntry(city));
+        searchQuery = string.Empty;
+        await RefreshClocksAsync();
+    }
+
+    private void RemoveClock(ClockEntry clock)
+    {
+        clocks.Remove(clock);
+    }
+
+    private async Task RestoreDefaultClocksAsync()
+    {
+        InitializeDefaultClocks();
+        await RefreshClocksAsync();
+    }
+
+    private void OnSearchInput(ChangeEventArgs args)
+    {
+        searchQuery = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private static string FormatTime(WorldTime? time)
+    {
+        return time is null ? "--:--:--" : $"{time.Hour}:{time.Minute}:{time.Second}";
+    }
+
+    private static string FormatDate(WorldTime time)
+    {
+        return string.Create(CultureInfo.InvariantCulture, $"{time.Weekday}, {time.Month:00}/{time.Day:00}/{time.Year}");
+    }
+
+    private string FormatRelativeTime(WorldTime time)
+    {
+        if (localTime is null)
+        {
+            return "Calculating time difference";
+        }
+
+        var difference = time.OffsetMinutes - localTime.OffsetMinutes;
+        if (difference == 0)
+        {
+            return "Same time as you";
+        }
+
+        var absoluteMinutes = Math.Abs(difference);
+        var hours = absoluteMinutes / 60;
+        var minutes = absoluteMinutes % 60;
+        var direction = difference > 0 ? "ahead" : "behind";
+        return minutes == 0
+            ? $"{hours} hr {direction} of you"
+            : $"{hours}h {minutes:00}m {direction} of you";
+    }
+
+    private static string FriendlyTimeZone(string timeZone)
+    {
+        return timeZone.Replace('_', ' ').Replace("/", " / ", StringComparison.Ordinal);
+    }
+
+    private static double GetHourAngle(WorldTime time)
+    {
+        return (time.HourValue % 12 * 30) + (time.MinuteValue * .5) + (time.SecondValue / 120);
+    }
+
+    private static bool IsDaytime(WorldTime time)
+    {
+        return time.HourValue is >= 6 and < 18;
+    }
+
+    private sealed record ZoneOption(string City, string Country, string TimeZone, string Code, string Accent);
+
+    private sealed record WorldTime(
+        string TimeZone,
+        int Year,
+        int Month,
+        int Day,
+        string Weekday,
+        string Hour,
+        string Minute,
+        string Second,
+        int OffsetMinutes,
+        string OffsetLabel,
+        string Abbreviation)
+    {
+        public int HourValue => int.TryParse(Hour, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : 0;
+        public int MinuteValue => int.TryParse(Minute, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : 0;
+        public int SecondValue => int.TryParse(Second, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : 0;
+    }
+
+    private sealed class ClockEntry(ZoneOption option)
+    {
+        public ZoneOption Option { get; } = option;
+        public WorldTime? Current { get; set; }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        timer?.Dispose();
+        timer = null;
+
+        if (clockModule is not null)
+        {
+            try
+            {
+                await clockModule.DisposeAsync();
+            }
+            catch (JSException)
+            {
+            }
+        }
+    }
+}
