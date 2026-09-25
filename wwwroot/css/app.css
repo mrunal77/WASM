@@ -65,33 +65,86 @@ a, .btn-link {
         content: "An error has occurred."
     }
 
-.loading-progress {
-    position: relative;
-    display: block;
-    width: 8rem;
-    height: 8rem;
-    margin: 20vh auto 1rem auto;
+.loading-wave {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0.65rem;
+    min-height: 3rem;
+    margin: 22vh auto 1rem;
 }
 
-    .loading-progress circle {
-        fill: none;
-        stroke: #e0e0e0;
-        stroke-width: 0.6rem;
-        transform-origin: 50% 50%;
-        transform: rotate(-90deg);
+    .loading-wave span[aria-hidden="true"] {
+        display: block;
+        width: 0.9rem;
+        height: 0.9rem;
+        border-radius: 50%;
+        box-shadow: 0 0.25rem 0.75rem rgba(15, 23, 42, 0.25);
+        animation: loading-wave 1.15s ease-in-out infinite;
+        animation-delay: calc(var(--dot-index, 0) * 0.09s);
     }
 
-        .loading-progress circle:last-child {
-            stroke: #1b6ec2;
-            stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
-            transition: stroke-dasharray 0.05s ease-in-out;
-        }
+    .loading-wave span:nth-of-type(2) {
+        background: #6366f1;
+    }
+
+    .loading-wave span:nth-of-type(3) {
+        background: #0ea5e9;
+    }
+
+    .loading-wave span:nth-of-type(4) {
+        background: #14b8a6;
+    }
+
+    .loading-wave span:nth-of-type(5) {
+        background: #22c55e;
+    }
+
+    .loading-wave span:nth-of-type(6) {
+        background: #eab308;
+    }
+
+    .loading-wave span:nth-of-type(7) {
+        background: #f97316;
+    }
+
+    .loading-wave span:nth-of-type(8) {
+        background: #ef4444;
+    }
+
+    .loading-wave span:nth-of-type(9) {
+        background: #a855f7;
+    }
+
+    .loading-wave span:nth-of-type(10) {
+        background: #ec4899;
+    }
+
+@keyframes loading-wave {
+    0%, 100% {
+        transform: translateY(0) scale(0.86);
+        opacity: 0.72;
+    }
+
+    50% {
+        transform: translateY(-0.9rem) scale(1.08);
+        opacity: 1;
+    }
+}
 
 .loading-progress-text {
     position: absolute;
     text-align: center;
     font-weight: bold;
-    inset: calc(20vh + 3.25rem) 0 auto 0.2rem;
+    inset: calc(22vh + 3rem) 0 auto 0.2rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loading-wave span[aria-hidden="true"] {
+        animation: none;
+        opacity: 0.7;
+        transform: none;
+    }
 }
 
     .loading-progress-text:after {

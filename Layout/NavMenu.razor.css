@@ -2,6 +2,60 @@
     background-color: rgba(255, 255, 255, 0.1);
 }
 
+.menu-toggle {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 0.7rem;
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+    transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+
+.menu-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+.menu-toggle:active {
+    transform: scale(0.94);
+}
+
+.menu-toggle.is-open {
+    border-color: rgba(165, 180, 252, 0.8);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.72), rgba(217, 70, 239, 0.72));
+    box-shadow: 0 0 1.1rem rgba(129, 140, 248, 0.48);
+}
+
+.menu-toggle span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    border-radius: 999px;
+    background: #fff;
+    transform-origin: center;
+    transition: transform 0.28s cubic-bezier(0.34, 1.35, 0.44, 1), opacity 0.18s ease, background-color 0.25s ease;
+}
+
+.menu-toggle span + span {
+    margin-top: 6px;
+}
+
+.menu-toggle.is-open span:first-child {
+    transform: translateY(8px) rotate(45deg);
+}
+
+.menu-toggle.is-open span:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+}
+
+.menu-toggle.is-open span:last-child {
+    transform: translateY(-8px) rotate(-45deg);
+}
+
 .top-row {
     height: 3.5rem;
     background-color: rgba(0,0,0,0.4);
@@ -84,8 +138,6 @@
 
 @media (max-width: 640.98px) {
     .nav-scrollable:not(.collapse) {
-        /* Overlay the content on small screens so the open menu always sits
-           above floating elements (e.g. the Calculator's movable window). */
         position: fixed;
         top: 3.5rem;
         left: 0;
@@ -95,5 +147,115 @@
         padding: 0.25rem 1rem 1rem;
         overflow-y: auto;
         background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
+        transform-origin: top center;
+        animation: mobile-nav-panel-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item {
+        opacity: 0;
+        animation: mobile-nav-item-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+        animation-delay: calc(var(--menu-index, 0) * 0.035s);
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(1) {
+        --menu-index: 0;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(2) {
+        --menu-index: 1;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(3) {
+        --menu-index: 2;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(4) {
+        --menu-index: 3;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(5) {
+        --menu-index: 4;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(6) {
+        --menu-index: 5;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(7) {
+        --menu-index: 6;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(8) {
+        --menu-index: 7;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(9) {
+        --menu-index: 8;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(10) {
+        --menu-index: 9;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(11) {
+        --menu-index: 10;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(12) {
+        --menu-index: 11;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(13) {
+        --menu-index: 12;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(14) {
+        --menu-index: 13;
+    }
+
+    .nav-scrollable:not(.collapse) .nav-item:nth-child(15) {
+        --menu-index: 14;
+    }
+
+    @keyframes mobile-nav-panel-in {
+        from {
+            opacity: 0;
+            transform: translateY(-12px) scale(0.995);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @keyframes mobile-nav-item-in {
+        from {
+            opacity: 0;
+            transform: translateX(-18px);
+        }
+
+        65% {
+            opacity: 1;
+            transform: translateX(3px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+}
+
+@media (max-width: 640.98px) and (prefers-reduced-motion: reduce) {
+    .nav-scrollable:not(.collapse),
+    .nav-scrollable:not(.collapse) .nav-item {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+
+    .menu-toggle span {
+        transition: none;
     }
 }
