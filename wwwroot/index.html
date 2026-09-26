@@ -4,13 +4,31 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WASM Weather Forecast</title>
+    <title>WASM Apps — Free Online Tools: Weather, Calculator, Number Match Game & More</title>
+    <meta name="description" content="WASM Apps is a free collection of online tools that run entirely in your browser: weather forecast, calculator, stopwatch, world clock, number match game, currency converter, file compressor and more. No sign-up required." />
+    <meta name="keywords" content="free online tools, weather forecast, calculator, stopwatch, world clock, number match game, currency converter, air quality, file compressor, image gallery, function grapher, blazor webassembly" />
+    <meta name="author" content="mrunal77" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#0d6efd" />
+    <link rel="canonical" href="https://mrunal77.github.io/WASM/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="WASM Apps" />
+    <meta property="og:title" content="WASM Apps — Free Online Tools in Your Browser" />
+    <meta property="og:description" content="Weather forecast, calculator, stopwatch, world clock, number match game, currency converter, file compressor and more — free, no sign-up, runs entirely in your browser." />
+    <meta property="og:url" content="https://mrunal77.github.io/WASM/" />
+    <meta property="og:image" content="https://mrunal77.github.io/WASM/icon-192.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="WASM Apps — Free Online Tools in Your Browser" />
+    <meta name="twitter:description" content="Free online tools that run entirely in your browser: weather, calculator, number match game, currency converter, file compressor and more." />
+    <meta name="twitter:image" content="https://mrunal77.github.io/WASM/icon-192.png" />
     <base href="/" />
     <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="stylesheet" href="css/code-screenshot.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" />    
     <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <link rel="manifest" href="site.webmanifest" />
     <link href="WASM.styles.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -25,6 +43,29 @@
     <script src="js/gallery.js"></script>
     <script src="js/codeScreenshot.js"></script>
     <script src="js/fileCompressor.js"></script>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "WebSite",
+                "name": "WASM Apps",
+                "url": "https://mrunal77.github.io/WASM/",
+                "description": "Free collection of online tools that run entirely in your browser: weather forecast, calculator, stopwatch, world clock, number match game, currency converter, file compressor and more.",
+                "author": { "@type": "Person", "name": "mrunal77" }
+            },
+            {
+                "@type": "WebApplication",
+                "name": "WASM Apps",
+                "url": "https://mrunal77.github.io/WASM/",
+                "applicationCategory": "BrowserApplication",
+                "operatingSystem": "Any",
+                "browserRequirements": "Requires JavaScript and WebAssembly",
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+            }
+        ]
+    }
+    </script>
 </head>
 
 <body>
@@ -49,6 +90,26 @@
         <a href="" class="reload">Reload</a>
         <a class="dismiss">🗙</a>
     </div>
+    <noscript>
+        <h1>WASM Apps — Free Online Tools</h1>
+        <p>A free collection of small tools that run entirely in your browser: weather forecast, stopwatch, color picker, world clock, calculator, map, air quality, currency converter, image gallery, function grapher, code snapshot images, file compressor, counter, and the number match game.</p>
+        <ul>
+            <li><a href="https://mrunal77.github.io/WASM/weather">Weather Forecast — live weather data</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/stopwatch">Stopwatch — with lap timing</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/color-code">Color Code — HEX, RGB, HSL, HSV picker</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/world-clock">World Clock — live times across cities</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/counter">Counter</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/calculator">Calculator — standard and scientific</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/map">Map — interactive OpenStreetMap</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/airquality">Air Quality — PM2.5, PM10, CO readings</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/currency">Currency Converter</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/gallery">Image Gallery — webcam capture</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/graph">Function Grapher</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/code-screenshot">Code Snapshot — code to image</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/compress">File Compressor — images and PDFs</a></li>
+            <li><a href="https://mrunal77.github.io/WASM/number-match">Number Match — pair numbers that sum to 10</a></li>
+        </ul>
+    </noscript>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 
