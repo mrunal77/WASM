@@ -1,0 +1,18 @@
+{
+  "name": "WASM Apps — Free Online Tools",
+  "short_name": "WASM Apps",
+  "description": "Free online tools that run entirely in your browser: weather, calculator, number match game, currency converter, file compressor and more.",
+  "start_url": "https://mrunal77.github.io/WASM/",
+  "scope": "https://mrunal77.github.io/WASM/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0d6efd",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
