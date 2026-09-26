@@ -1,0 +1,236 @@
+@page "/tic-tac-toe"
+@using WASM.Models
+
+<PageTitle>Tic Tac Toe</PageTitle>
+
+<h1>Tic Tac Toe</h1>
+<p class="text-muted">Play against the computer on three difficulties, or challenge a friend on this device.</p>
+
+<div class="ttt-shell">
+    <section class="ttt-scoreboard" aria-label="Score">
+        <div class="ttt-score ttt-x"><span class="ttt-score-label">X wins</span><strong>@xWins</strong></div>
+        <div class="ttt-score"><span class="ttt-score-label">Draws</span><strong>@draws</strong></div>
+        <div class="ttt-score ttt-o"><span class="ttt-score-label">O wins</span><strong>@oWins</strong></div>
+    </section>
+
+    <div class="ttt-toolbar">
+        <div class="btn-group btn-group-sm" role="group" aria-label="Game mode">
+            <button type="button" class="btn @(!twoPlayers ? "btn-primary" : "btn-outline-primary")" @onclick="() => SetMode(false)">Vs computer</button>
+            <button type="button" class="btn @(twoPlayers ? "btn-primary" : "btn-outline-primary")" @onclick="() => SetMode(true)">2 players</button>
+        </div>
+        @if (!twoPlayers)
+        {
+            <div class="btn-group btn-group-sm" role="group" aria-label="Difficulty">
+                @foreach (var level in Enum.GetValues<TicTacToeDifficulty>())
+                {
+                    <button type="button"
+                            class="btn @(difficulty == level ? "btn-warning" : "btn-outline-warning")"
+                            @onclick="() => SetDifficulty(level)">@level</button>
+                }
+            </div>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Play as">
+                <button type="button" class="btn @(humanSide == TicTacToePlayer.X ? "btn-success" : "btn-outline-success")" @onclick="() => SetHumanSide(TicTacToePlayer.X)">Play X</button>
+                <button type="button" class="btn @(humanSide == TicTacToePlayer.O ? "btn-success" : "btn-outline-success")" @onclick="() => SetHumanSide(TicTacToePlayer.O)">Play O</button>
+            </div>
+        }
+    </div>
+
+    <p class="ttt-status" role="status" aria-live="polite">@status</p>
+
+    <div class="ttt-board" role="grid" aria-label="Tic tac toe board">
+        @for (var i = 0; i < 9; i++)
+        {
+            var index = i;
+            var value = game.Board[index];
+            <button type="button"
+                    role="gridcell"
+                    aria-label="@CellLabel(index)"
+                    class="@CellCss(index)"
+                    disabled="@IsCellDisabled(index)"
+                    @onclick="() => OnCellClick(index)">
+                @if (value == TicTacToePlayer.X)
+                {
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                }
+                else if (value == TicTacToePlayer.O)
+                {
+                    <i class="fa-regular fa-circle" aria-hidden="true"></i>
+                }
+            </button>
+        }
+    </div>
+
+    <div class="ttt-actions">
+        <button type="button" class="btn btn-primary btn-sm" @onclick="() => StartNewRound()">
+            <i class="fa-solid fa-rotate-left me-1" aria-hidden="true"></i> New round
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ResetScores()">
+            <i class="fa-solid fa-trash me-1" aria-hidden="true"></i> Reset score
+        </button>
+    </div>
+</div>
+
+@code {
+    private readonly TicTacToeGame game = new();
+    private bool twoPlayers;
+    private TicTacToeDifficulty difficulty = TicTacToeDifficulty.Hard;
+    private TicTacToePlayer humanSide = TicTacToePlayer.X;
+    private bool thinking;
+    private string status = "Your move — you are X.";
+    private int xWins, oWins, draws;
+    private TicTacToePlayer roundStarter = TicTacToePlayer.X;
+
+    private TicTacToePlayer AiSide => humanSide == TicTacToePlayer.X ? TicTacToePlayer.O : TicTacToePlayer.X;
+
+    protected override void OnInitialized()
+    {
+        game.Reset(roundStarter);
+        UpdateStatus();
+    }
+
+    private void SetMode(bool twoPlayer)
+    {
+        twoPlayers = twoPlayer;
+        StartNewRound();
+    }
+
+    private void SetDifficulty(TicTacToeDifficulty level)
+    {
+        difficulty = level;
+        StartNewRound();
+    }
+
+    private void SetHumanSide(TicTacToePlayer side)
+    {
+        humanSide = side;
+        StartNewRound();
+    }
+
+    private void StartNewRound()
+    {
+        roundStarter = roundStarter == TicTacToePlayer.X ? TicTacToePlayer.O : TicTacToePlayer.X;
+        game.Reset(roundStarter);
+        thinking = false;
+        UpdateStatus();
+        _ = MaybeAiMove();
+    }
+
+    private void ResetScores()
+    {
+        xWins = 0;
+        oWins = 0;
+        draws = 0;
+        StartNewRound();
+    }
+
+    private async Task OnCellClick(int index)
+    {
+        if (thinking || !game.TryMove(index))
+        {
+            return;
+        }
+
+        AfterMove();
+        await MaybeAiMove();
+    }
+
+    private async Task MaybeAiMove()
+    {
+        if (twoPlayers || game.IsGameOver || game.CurrentPlayer != AiSide)
+        {
+            return;
+        }
+
+        thinking = true;
+        UpdateStatus();
+        await Task.Delay(350);
+
+        var move = game.GetBestMove(difficulty, AiSide);
+        if (move >= 0)
+        {
+            game.TryMove(move);
+        }
+
+        thinking = false;
+        AfterMove();
+        StateHasChanged();
+    }
+
+    private void AfterMove()
+    {
+        if (game.Winner == TicTacToePlayer.X)
+        {
+            xWins++;
+        }
+        else if (game.Winner == TicTacToePlayer.O)
+        {
+            oWins++;
+        }
+        else if (game.IsDraw)
+        {
+            draws++;
+        }
+
+        UpdateStatus();
+    }
+
+    private string CellLabel(int index)
+    {
+        var value = game.Board[index];
+        return value == TicTacToePlayer.None
+            ? $"Cell {index + 1}, empty"
+            : $"Cell {index + 1}, {value}";
+    }
+
+    private string CellCss(int index)
+    {
+        var css = "ttt-cell";
+        var value = game.Board[index];
+        if (value == TicTacToePlayer.X)
+        {
+            css += " is-x";
+        }
+        else if (value == TicTacToePlayer.O)
+        {
+            css += " is-o";
+        }
+
+        if (game.WinningLine?.Contains(index) == true)
+        {
+            css += " is-win";
+        }
+
+        return css;
+    }
+
+    private bool IsCellDisabled(int index) =>
+        game.Board[index] != TicTacToePlayer.None || game.IsGameOver || thinking;
+
+    private void UpdateStatus()
+    {
+        if (game.Winner != TicTacToePlayer.None)
+        {
+            status = twoPlayers || game.Winner == humanSide
+                ? $"{game.Winner} wins! 🎉"
+                : $"{game.Winner} wins — computer takes this one.";
+        }
+        else if (game.IsDraw)
+        {
+            status = "It's a draw.";
+        }
+        else if (thinking)
+        {
+            status = "Computer is thinking…";
+        }
+        else if (!twoPlayers)
+        {
+            status = game.CurrentPlayer == humanSide
+                ? $"Your move — you are {humanSide}."
+                : $"{game.CurrentPlayer}'s turn.";
+        }
+        else
+        {
+            status = $"{game.CurrentPlayer}'s turn.";
+        }
+    }
+}
