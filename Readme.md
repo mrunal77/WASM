@@ -41,8 +41,7 @@ This repository contains a Blazor WebAssembly app with multiple built-in utiliti
 
 - `Pages/` — Blazor pages for the app tabs.
 - `wwwroot/` — static assets, JavaScript helpers, and the Blazor entry page.
-- `.github/workflows/` — CI/CD workflows for GitHub Pages and Vercel deployments.
-- `vercel.json` — Vercel routing config for SPA support.
+- `.github/workflows/` — CI/CD workflow for GitHub Pages deployment.
 
 ## Requirements
 
@@ -73,14 +72,6 @@ The repository includes a GitHub Actions workflow at `.github/workflows/dotnet.y
 - creates `.nojekyll`
 - deploys using `JamesIves/github-pages-deploy-action@3.7.1` with `clean: true`
 
-### Vercel
-
-The Vercel workflow is in `.github/workflows/vercel-deploy.yml`. It builds the app, publishes to `release/wwwroot`, and deploys that static output to Vercel.
-
-The `vercel.json` file configures SPA rewrites so Blazor routes work correctly.
-
-> Note: Vercel deployment requires a repository secret named `VERCEL_TOKEN`.
-
 ## Notes
 
 - If browser geolocation is denied, some features may show an error message and require permission to be enabled.
@@ -88,4 +79,4 @@ The `vercel.json` file configures SPA rewrites so Blazor routes work correctly.
 
 ## Contact
 
-For updates or fixes, commit to the `main` branch and deploy via GitHub Actions or Vercel.
+For updates or fixes, commit to the `main` branch and deploy via GitHub Actions.
