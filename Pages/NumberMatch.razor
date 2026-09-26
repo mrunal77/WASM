@@ -1,0 +1,303 @@
+@page "/number-match"
+@using WASM.Models
+@implements IDisposable
+
+<PageTitle>Number Match</PageTitle>
+
+<h1>Number Match</h1>
+<p class="text-muted">Tap two numbers that add up to 10. Pairs must touch or have a clear path between them.</p>
+
+<div class="nm-shell">
+    <section class="nm-stats" aria-label="Game stats">
+        <div class="nm-stat"><span class="nm-stat-label">Score</span><strong>@game.Score</strong></div>
+        <div class="nm-stat"><span class="nm-stat-label">Pairs</span><strong>@game.PairsFound</strong></div>
+        <div class="nm-stat"><span class="nm-stat-label">Moves</span><strong>@game.Moves</strong></div>
+        <div class="nm-stat"><span class="nm-stat-label">Time</span><strong>@FormatTime(stopwatch.Elapsed)</strong></div>
+        <div class="nm-stat"><span class="nm-stat-label">Level</span><strong>@game.Level</strong></div>
+        <div class="nm-stat"><span class="nm-stat-label">Left</span><strong>@game.Remaining</strong></div>
+    </section>
+
+    <div class="nm-toolbar" role="group" aria-label="Game controls">
+        <button type="button" class="btn btn-primary btn-sm" @onclick="StartNewGame">
+            <i class="fa-solid fa-rotate-left me-1" aria-hidden="true"></i> New game
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="ReplayCurrentLevel">
+            <i class="fa-solid fa-repeat me-1" aria-hidden="true"></i> Replay level
+        </button>
+        <button type="button" class="btn btn-success btn-sm" @onclick="OnAddRow" disabled="@(!game.CanAddRow())">
+            <i class="fa-solid fa-plus me-1" aria-hidden="true"></i> Add row (@game.AddRowsLeft)
+        </button>
+        <button type="button" class="btn btn-warning btn-sm" @onclick="OnHint" disabled="@(hintsLeft <= 0 || game.IsCleared)">
+            <i class="fa-solid fa-lightbulb me-1" aria-hidden="true"></i> Hint (@hintsLeft)
+        </button>
+    </div>
+
+    <p class="nm-message nm-message-@messageKind" role="status" aria-live="polite">@message</p>
+
+    @if (!game.IsCleared && !game.HasMoves() && game.CanAddRow())
+    {
+        <div class="alert alert-info py-2" role="alert">
+            No more pairs visible — use <strong>Add row</strong> to keep playing.
+        </div>
+    }
+
+    <div class="nm-board" role="grid" aria-label="Number board">
+        @foreach (var row in game.Cells.OrderBy(c => c.Row).ThenBy(c => c.Col).GroupBy(c => c.Row).OrderBy(g => g.Key))
+        {
+            <div class="nm-row" role="row">
+                @foreach (var cell in row)
+                {
+                    if (cell.Cleared)
+                    {
+                        <span class="nm-cell is-cleared" aria-hidden="true"></span>
+                    }
+                    else
+                    {
+                        var selected = game.SelectedId == cell.Id;
+                        var hinted = hintA == cell.Id || hintB == cell.Id;
+                        var shake = shakeIds.Contains(cell.Id);
+                        <button type="button"
+                                role="gridcell"
+                                aria-label="Number @cell.Value"
+                                class="nm-cell @(selected ? "is-selected" : string.Empty) @(hinted ? "is-hint" : string.Empty) @(shake ? "is-shake" : string.Empty)"
+                                @onclick="() => OnTap(cell.Id)">
+                            @cell.Value
+                        </button>
+                    }
+                }
+            </div>
+        }
+    </div>
+
+    @if (game.IsCleared)
+    {
+        <div class="nm-overlay" role="dialog" aria-modal="true" aria-label="Level complete">
+            <div class="nm-overlay-card">
+                <h2 class="h4">Level @game.Level cleared!</h2>
+                <p class="mb-1">Score <strong>@game.Score</strong> · Moves <strong>@game.Moves</strong> · Time <strong>@FormatTime(stopwatch.Elapsed)</strong></p>
+                <p class="text-muted small">Next level adds an extra starting row.</p>
+                <div class="d-flex gap-2 justify-content-center mt-3">
+                    <button type="button" class="btn btn-primary" @onclick="GoToNextLevel">Next level</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ReplayCurrentLevel">Replay</button>
+                </div>
+            </div>
+        </div>
+    }
+    else if (!game.HasMoves() && !game.CanAddRow())
+    {
+        <div class="nm-overlay" role="dialog" aria-modal="true" aria-label="No moves left">
+            <div class="nm-overlay-card">
+                <h2 class="h4">No moves left</h2>
+                <p class="text-muted">No connectable pairs remain and no rows can be added.</p>
+                <div class="d-flex gap-2 justify-content-center mt-3">
+                    <button type="button" class="btn btn-primary" @onclick="ReplayCurrentLevel">Retry level</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="StartNewGame">New game</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <details class="nm-help mt-3">
+        <summary>How to play</summary>
+        <ul class="mb-0">
+            <li>A pair clears only when the two numbers add up to <strong>10</strong> (e.g. 1+9, 2+8, …, 5+5).</li>
+            <li>The two cells must be <strong>neighbours</strong> (including diagonally), share a row, column, or <strong>diagonal</strong> with only cleared cells between them, or be next to each other once cleared cells are removed (row wrap).</li>
+            <li>Tap a cell again to deselect it. Wrong sums or blocked pairs keep your newest tap selected.</li>
+            <li><strong>Add row</strong> copies the remaining numbers to new rows, classic Numberzilla style.</li>
+        </ul>
+    </details>
+</div>
+
+@code {
+    private NumberMatchGame game = new();
+    private readonly System.Diagnostics.Stopwatch stopwatch = new();
+    private System.Threading.Timer? timer;
+    private bool disposed;
+
+    private string message = "Pick two numbers that add up to 10.";
+    private string messageKind = "info";
+    private int? hintA;
+    private int? hintB;
+    private const int MaxHints = 3;
+    private int hintsLeft = MaxHints;
+    private readonly HashSet<int> shakeIds = new();
+    private int shakeSeq;
+
+    protected override void OnInitialized()
+    {
+        stopwatch.Start();
+        timer = new System.Threading.Timer(
+            _ => _ = InvokeAsync(() =>
+            {
+                if (!disposed)
+                {
+                    StateHasChanged();
+                }
+            }),
+            null,
+            TimeSpan.FromMilliseconds(250),
+            TimeSpan.FromMilliseconds(250));
+    }
+
+    private void ResetRoundUi(string? text = null)
+    {
+        hintA = null;
+        hintB = null;
+        shakeIds.Clear();
+        if (text is not null)
+        {
+            message = text;
+            messageKind = "info";
+        }
+    }
+
+    private void StartNewGame()
+    {
+        game.NewGame(1);
+        hintsLeft = MaxHints;
+        stopwatch.Restart();
+        ResetRoundUi("Fresh board — find two numbers that add up to 10.");
+    }
+
+    private void ReplayCurrentLevel()
+    {
+        var level = game.Level;
+        game.NewGame(level);
+        hintsLeft = MaxHints;
+        stopwatch.Restart();
+        ResetRoundUi($"Level {level} restarted — good luck.");
+    }
+
+    private void GoToNextLevel()
+    {
+        game.NextLevel();
+        hintsLeft = MaxHints;
+        stopwatch.Restart();
+        ResetRoundUi($"Level {game.Level}: more rows, same rule — make 10.");
+    }
+
+    private void OnTap(int id)
+    {
+        var tapped = game.GetCell(id);
+        hintA = null;
+        hintB = null;
+
+        var result = game.TrySelect(id, out var pairedWith);
+        switch (result)
+        {
+            case SelectResult.Ignored:
+                return;
+            case SelectResult.Selected:
+                message = $"Selected {tapped?.Value} — now find {10 - (tapped?.Value ?? 0)}.";
+                messageKind = "info";
+                break;
+            case SelectResult.Deselected:
+                message = "Deselected. Pick two numbers that add up to 10.";
+                messageKind = "info";
+                break;
+            case SelectResult.Paired when tapped is not null && pairedWith is not null:
+                if (hintsLeft < MaxHints)
+                {
+                    hintsLeft++;
+                }
+                message = $"Nice! {pairedWith.Value} + {tapped.Value} = 10. +1 hint.";
+                messageKind = "success";
+                if (game.IsCleared)
+                {
+                    stopwatch.Stop();
+                    message = $"Level {game.Level} cleared in {FormatTime(stopwatch.Elapsed)}!";
+                }
+                else if (!game.HasMoves())
+                {
+                    message += game.CanAddRow() ? " No pairs left — add a row." : " No pairs left.";
+                    messageKind = "info";
+                }
+                break;
+            case SelectResult.RejectedSum when tapped is not null:
+                var selected = game.GetCell(game.SelectedId ?? -1);
+                message = selected is null
+                    ? "Those don't add to 10 — try again."
+                    : $"{selected.Value} + {tapped.Value} = {selected.Value + tapped.Value}, not 10.";
+                messageKind = "error";
+                Shake(id);
+                break;
+            case SelectResult.RejectedBlocked:
+                message = "That pair adds to 10 but is blocked — cells must touch or have a clear path.";
+                messageKind = "error";
+                Shake(id);
+                break;
+        }
+    }
+
+    private void OnAddRow()
+    {
+        hintA = null;
+        hintB = null;
+        if (game.AddRow())
+        {
+            message = game.HasMoves()
+                ? "New row added from the remaining numbers."
+                : "New row added, but still no pairs — add another row.";
+            messageKind = "info";
+        }
+        else
+        {
+            message = "Can't add a row right now.";
+            messageKind = "error";
+        }
+    }
+
+    private void OnHint()
+    {
+        if (hintsLeft <= 0)
+        {
+            message = "No hints left for this level.";
+            messageKind = "error";
+            return;
+        }
+
+        var hint = game.FindHint();
+        if (hint is null)
+        {
+            message = game.CanAddRow()
+                ? "No pairs available — add a row."
+                : "No pairs available.";
+            messageKind = "info";
+            return;
+        }
+
+        hintA = hint.Value.First.Id;
+        hintB = hint.Value.Second.Id;
+        hintsLeft--;
+        game.ApplyHintPenalty();
+        message = $"Hint: {hint.Value.First.Value} + {hint.Value.Second.Value} = 10 (−2 pts).";
+        messageKind = "info";
+    }
+
+    private void Shake(int id)
+    {
+        shakeIds.Add(id);
+        var seq = ++shakeSeq;
+        _ = Task.Delay(450).ContinueWith(_ => _ = InvokeAsync(() =>
+        {
+            if (!disposed && seq == shakeSeq)
+            {
+                shakeIds.Clear();
+                StateHasChanged();
+            }
+        }));
+    }
+
+    private static string FormatTime(TimeSpan time)
+    {
+        var minutes = (int)time.TotalMinutes;
+        return $"{minutes}:{time.Seconds:00}.{time.Milliseconds / 100}";
+    }
+
+    public void Dispose()
+    {
+        disposed = true;
+        stopwatch.Stop();
+        timer?.Dispose();
+    }
+}
