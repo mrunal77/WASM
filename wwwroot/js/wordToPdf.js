@@ -33,15 +33,15 @@ window.wasmWordToPdf = (function () {
             },
             dragover: function (e) {
                 e.preventDefault();
-                dropEl.classList.add('w2p-drag-over');
+                if (dropEl) dropEl.classList.add('w2p-drag-over');
             },
             dragleave: function (e) {
                 e.preventDefault();
-                dropEl.classList.remove('w2p-drag-over');
+                if (dropEl) dropEl.classList.remove('w2p-drag-over');
             },
             drop: function (e) {
                 e.preventDefault();
-                dropEl.classList.remove('w2p-drag-over');
+                if (dropEl) dropEl.classList.remove('w2p-drag-over');
                 if (e.dataTransfer && e.dataTransfer.files) {
                     addFiles(e.dataTransfer.files);
                 }
@@ -82,11 +82,27 @@ window.wasmWordToPdf = (function () {
             throw new Error('Mammoth.js library is missing. Please reload the page.');
         }
 
-        const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+        const result = await mammoth.convertToHtml({
+            arrayBuffer: arrayBuffer,
+            includeDefaultStyleMap: true
+        });
+
         return {
             html: result.value || '<p><em>(Empty document)</em></p>',
             messages: (result.messages || []).map(m => m.message)
         };
+    }
+
+    async function waitForImages(element) {
+        const images = Array.from(element.querySelectorAll('img'));
+        const promises = images.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(resolve => {
+                img.onload = resolve;
+                img.onerror = resolve;
+            });
+        });
+        await Promise.all(promises);
     }
 
     async function generatePdfFromElement(containerEl, filename, options) {
@@ -94,19 +110,54 @@ window.wasmWordToPdf = (function () {
             throw new Error('html2pdf library is missing. Please reload the page.');
         }
 
-        const opt = {
-            margin: Number(options.margin || 10),
-            filename: filename || 'converted_document.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false },
-            jsPDF: {
-                unit: 'mm',
-                format: options.pageSize || 'a4',
-                orientation: options.orientation || 'portrait'
-            }
-        };
+        if (!containerEl) {
+            throw new Error('Document container is missing.');
+        }
 
-        await html2pdf().set(opt).from(containerEl).save();
+        // Clone the document container to an unconstrained off-screen element so that
+        // scrollbars, max-height, and overflow clipping do NOT cut off any document content.
+        const clone = containerEl.cloneNode(true);
+        clone.style.maxHeight = 'none';
+        clone.style.height = 'auto';
+        clone.style.overflow = 'visible';
+        clone.style.position = 'absolute';
+        clone.style.left = '-9999px';
+        clone.style.top = '0px';
+        clone.style.width = '794px'; // Standard A4 width in px at 96 DPI
+        clone.style.padding = '20px';
+        clone.style.backgroundColor = '#ffffff';
+        clone.style.color = '#1a1a1a';
+        document.body.appendChild(clone);
+
+        try {
+            await waitForImages(clone);
+
+            const opt = {
+                margin: Number(options.margin || 10),
+                filename: filename || 'converted_document.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    windowWidth: 794,
+                    scrollY: 0,
+                    scrollX: 0
+                },
+                jsPDF: {
+                    unit: 'mm',
+                    format: options.pageSize || 'a4',
+                    orientation: options.orientation || 'portrait'
+                },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            await html2pdf().set(opt).from(clone).save();
+        } finally {
+            if (document.body.contains(clone)) {
+                document.body.removeChild(clone);
+            }
+        }
     }
 
     return {
