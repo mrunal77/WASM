@@ -1,8 +1,17 @@
-﻿@page "/airquality"
+@page "/airquality"
 @inject IJSRuntime JS
 @inject HttpClient Http
 
-<PageTitle>Air Quality</PageTitle>
+<PageTitle>Air Quality Index Meter — PM2.5, PM10 & CO Readings — WASM Apps</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="Check live local air quality readings, PM2.5, PM10, and Carbon Monoxide (CO) levels powered by Open-Meteo and browser geolocation." />
+    <meta name="keywords" content="air quality index, pm2.5 meter, air pollution check, live aqi meter, local air quality app" />
+    <link rel="canonical" href="https://mrunal77.github.io/WASM/airquality" />
+    <meta property="og:title" content="Air Quality Index Meter — WASM Apps" />
+    <meta property="og:description" content="Check live local air quality readings, PM2.5, PM10, and Carbon Monoxide (CO) levels." />
+    <meta property="og:url" content="https://mrunal77.github.io/WASM/airquality" />
+</HeadContent>
 
 <h1>Air Quality</h1>
 <p>Shows nearby air-quality readings (based on your browser location).</p>

@@ -1,16 +1,21 @@
 .dropzone {
-    border: 2px dashed #adb5bd;
-    border-radius: 0.75rem;
-    padding: 2rem 1rem;
+    border: 2px dashed var(--border-color);
+    border-radius: 1.1rem;
+    padding: 2.5rem 1.5rem;
     text-align: center;
-    color: #6c757d;
-    transition: border-color 0.15s ease-in-out, background-color 0.15s ease-in-out;
+    color: var(--text-secondary);
+    background: var(--bg-card);
+    backdrop-filter: var(--glass-backdrop);
+    transition: all 0.2s ease;
+    cursor: pointer;
 }
 
-    .dropzone.fc-drag-over {
-        border-color: #0d6efd;
-        background-color: #e7f1ff;
-    }
+.dropzone:hover,
+.dropzone.fc-drag-over {
+    border-color: var(--accent-primary);
+    background: var(--accent-light);
+    color: var(--text-primary);
+}
 
 .compress-list {
     max-height: 440px;
@@ -20,36 +25,43 @@
 .compress-item {
     display: flex;
     align-items: center;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.85rem;
+    background: var(--bg-surface);
+    margin-bottom: 0.65rem;
 }
 
 .ci-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2.4rem;
-    height: 2.4rem;
-    border-radius: 0.5rem;
-    background-color: #e9ecef;
-    color: #495057;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 0.65rem;
+    background-color: var(--accent-light);
+    color: var(--accent-primary);
     font-size: 1.2rem;
     flex-shrink: 0;
 }
 
 .compress-item.is-error .ci-icon {
-    background-color: #f8d7da;
-    color: #842029;
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
 }
 
 .compress-item.is-success .ci-icon {
-    background-color: #d1e7dd;
-    color: #0f5132;
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #10b981;
 }
 
 .ci-name {
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--text-primary);
     word-break: break-all;
 }
 
 .ci-meta {
     font-size: 0.85rem;
+    color: var(--text-secondary);
 }

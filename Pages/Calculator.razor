@@ -1,8 +1,19 @@
-﻿@page "/calculator"
+@page "/calculator"
 @using System.Globalization
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 @implements IAsyncDisposable
+
+<PageTitle>Online Standard & Scientific Calculator — WASM Apps</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="Free draggable online standard and scientific calculator with keyboard support, trigonometric functions, exponents, and logs." />
+    <meta name="keywords" content="online calculator, scientific calculator, draggable calculator, web calculator app, free online calculator" />
+    <link rel="canonical" href="https://mrunal77.github.io/WASM/calculator" />
+    <meta property="og:title" content="Online Standard & Scientific Calculator — WASM Apps" />
+    <meta property="og:description" content="Free draggable online standard and scientific calculator with full keyboard support." />
+    <meta property="og:url" content="https://mrunal77.github.io/WASM/calculator" />
+</HeadContent>
 
 <div class="calculator-container" @ref="calculatorRef" tabindex="0" aria-label="Calculator" role="region" @onkeydown="HandleKeyDown">
     <div class="calculator-header"

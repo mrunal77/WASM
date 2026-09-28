@@ -1,51 +1,147 @@
-﻿@page "/"
+@page "/"
 
-<PageTitle>WASM Apps</PageTitle>
+<PageTitle>WASM Apps — 15 Free WebAssembly Tools in Your Browser</PageTitle>
 
-<div class="home-hero">
-    <h1>WASM Apps</h1>
-    <p class="lead">A collection of small tools and demos built with Blazor WebAssembly — everything runs entirely in your browser.</p>
+<HeadContent>
+    <meta name="description" content="WASM Apps is a suite of 15 free, privacy-first online tools running 100% in your browser: weather forecast, stopwatch, color converter, world clock, calculator, file compressor, code screenshot generator, and games." />
+    <meta name="keywords" content="webassembly apps, blazor wasm, online calculator, weather forecast, file compressor, code snapshot, world clock, color picker, number match game, privacy first tools" />
+    <link rel="canonical" href="https://mrunal77.github.io/WASM/" />
+    <meta property="og:title" content="WASM Apps — 15 Free WebAssembly Tools in Your Browser" />
+    <meta property="og:description" content="Lightning-fast online utilities running directly inside your browser. No sign-ups, no tracking, zero server uploads." />
+    <meta property="og:url" content="https://mrunal77.github.io/WASM/" />
+    <meta name="twitter:title" content="WASM Apps — 15 Free WebAssembly Tools in Your Browser" />
+    <meta name="twitter:description" content="Lightning-fast online utilities running directly inside your browser. No sign-ups, no tracking, zero server uploads." />
+</HeadContent>
+
+<div class="home-hero text-center">
+    <div class="hero-badge mb-3">
+        <i class="fa-solid fa-bolt text-warning me-1"></i> Powered by Blazor WebAssembly .NET 10
+    </div>
+    <h1 class="hero-title">15 Powerful Web Tools.<br /><span class="gradient-text">100% Client-Side.</span></h1>
+    <p class="hero-subtitle mx-auto">
+        Lightning-fast online utilities running directly inside your browser. No sign-ups, no tracking, and zero server uploads.
+    </p>
+
+    <div class="hero-features d-flex justify-content-center flex-wrap gap-3 mt-4">
+        <span class="feature-chip"><i class="fa-solid fa-shield-halved me-1"></i> Private & Secure</span>
+        <span class="feature-chip"><i class="fa-solid fa-gauge-high me-1"></i> Instant Execution</span>
+        <span class="feature-chip"><i class="fa-solid fa-wifi me-1"></i> Works Offline</span>
+    </div>
 </div>
 
-<div class="row g-4 app-card-grid">
-    @foreach (var app in Apps)
-    {
-        <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-            <div class="card app-card h-100">
-                <a class="app-card-link" href="@app.Href">
-                    <div class="card-body d-flex flex-column">
-                        <div class="app-card-icon">
-                            <i class="@app.Icon" aria-hidden="true"></i>
-                        </div>
-                        <h2 class="card-title h5">@app.Title</h2>
-                        <p class="card-text flex-grow-1">@app.Description</p>
-                        <span class="app-card-cta">Open app <i class="fa fa-arrow-right ms-1" aria-hidden="true"></i></span>
-                    </div>
-                </a>
+<div class="toolbar-wrapper mb-4">
+    <div class="row align-items-center g-3">
+        <!-- Category Filter Pills -->
+        <div class="col-12 col-md-7">
+            <div class="category-pills">
+                <button class="pill-btn @(selectedCategory == "All" ? "active" : "")" @onclick='() => SetCategory("All")'>
+                    All <span class="pill-count">@Apps.Length</span>
+                </button>
+                <button class="pill-btn @(selectedCategory == "Utility" ? "active" : "")" @onclick='() => SetCategory("Utility")'>
+                    Utilities
+                </button>
+                <button class="pill-btn @(selectedCategory == "Media" ? "active" : "")" @onclick='() => SetCategory("Media")'>
+                    Media & Graphics
+                </button>
+                <button class="pill-btn @(selectedCategory == "Game" ? "active" : "")" @onclick='() => SetCategory("Game")'>
+                    Games
+                </button>
             </div>
         </div>
-    }
+
+        <!-- Search Input -->
+        <div class="col-12 col-md-5">
+            <div class="search-box position-relative">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" class="form-control search-input" placeholder="Search tools (e.g. Weather, Calculator)..." @bind="searchQuery" @bind:event="oninput" />
+                @if (!string.IsNullOrWhiteSpace(searchQuery))
+                {
+                    <button class="btn-clear" @onclick="ClearSearch" title="Clear search">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
 </div>
 
+@if (!FilteredApps.Any())
+{
+    <div class="empty-state text-center py-5">
+        <i class="fa-solid fa-ghost empty-icon mb-3"></i>
+        <h3>No tools found matching "@searchQuery"</h3>
+        <p class="text-secondary">Try searching for something else or reset filters.</p>
+        <button class="btn btn-outline-primary mt-2" @onclick="ClearSearch">Show All Tools</button>
+    </div>
+}
+else
+{
+    <div class="row g-4 app-card-grid">
+        @foreach (var app in FilteredApps)
+        {
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                <div class="card app-card h-100">
+                    <a class="app-card-link" href="@app.Href">
+                        <div class="card-body d-flex flex-column">
+                            <div class="card-top d-flex justify-content-between align-items-center mb-3">
+                                <div class="app-card-icon">
+                                    <i class="@app.Icon" aria-hidden="true"></i>
+                                </div>
+                                <span class="badge-tech">@app.Category</span>
+                            </div>
+                            <h2 class="card-title h5">@app.Title</h2>
+                            <p class="card-text flex-grow-1">@app.Description</p>
+                            <span class="app-card-cta">
+                                Launch App <i class="fa-solid fa-arrow-right ms-1" aria-hidden="true"></i>
+                            </span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+}
+
 @code {
-    private record AppInfo(string Title, string Href, string Icon, string Description);
+    private string searchQuery = "";
+    private string selectedCategory = "All";
+
+    private record AppInfo(string Title, string Href, string Icon, string Description, string Category);
 
     private static readonly AppInfo[] Apps =
     [
-        new("Weather Forecast", "weather", "fa-solid fa-cloud-sun", "Live weather data from Open-Meteo — uses your location or a city search."),
-        new("Stopwatch", "stopwatch", "fa-solid fa-stopwatch", "A precise stopwatch with pause, resume, lap timing, and reset controls."),
-        new("Color Code", "color-code", "fa-solid fa-palette", "Pick a color and copy its HEX, RGB, HSL, or HSV code with contrast guidance."),
-        new("World Clock", "world-clock", "fa-solid fa-earth-americas", "Track live local times across cities with automatic daylight-saving updates."),
-        new("Calculator", "calculator", "fa-solid fa-calculator", "A handy calculator with on-screen keys and full keyboard support."),
-        new("Map", "map", "fa-solid fa-map", "Interactive map powered by OpenStreetMap and Leaflet. Center on your location with one click."),
-        new("Air Quality", "airquality", "fa-solid fa-wind", "Nearby air-quality readings based on your browser location."),
-        new("Currency Converter", "currency", "fa-solid fa-money-bill-transfer", "Convert between currencies with up-to-date exchange rates."),
-        new("Image Gallery", "gallery", "fa-solid fa-camera", "Snap photos with your webcam and browse them in a gallery."),
-        new("Function Grapher", "graph", "fa-solid fa-chart-line", "Pick a function and a range, then plot it as an SVG graph."),
-        new("Code Snapshot", "code-screenshot", "fa-solid fa-code", "Turn highlighted code into a crisp PNG image or copy it straight to your clipboard."),
-        new("File Compressor", "compress", "fa-solid fa-compress", "Shrink images and PDF files in your browser — nothing is ever uploaded."),
-        new("Number Match", "number-match", "fa-solid fa-puzzle-piece", "Clear pairs of numbers that add up to 10 — neighbours or a clear path only."),
-        new("Tic Tac Toe", "tic-tac-toe", "fa-solid fa-xmarks-lines", "Beat the unbeatable computer or challenge a friend on this device."),
-        new("Counter", "counter", "fa-solid fa-plus", "A simple click counter demo."),
+        new("Weather Forecast", "weather", "fa-solid fa-cloud-sun", "Live weather data from Open-Meteo — uses your location or a city search.", "Utility"),
+        new("Stopwatch", "stopwatch", "fa-solid fa-stopwatch", "A precise stopwatch with pause, resume, lap timing, and reset controls.", "Utility"),
+        new("Color Code", "color-code", "fa-solid fa-palette", "Pick a color and copy its HEX, RGB, HSL, or HSV code with contrast guidance.", "Media"),
+        new("World Clock", "world-clock", "fa-solid fa-earth-americas", "Track live local times across cities with automatic daylight-saving updates.", "Utility"),
+        new("Calculator", "calculator", "fa-solid fa-calculator", "A handy calculator with on-screen keys and full keyboard support.", "Utility"),
+        new("Map", "map", "fa-solid fa-map", "Interactive map powered by OpenStreetMap and Leaflet. Center on your location with one click.", "Media"),
+        new("Air Quality", "airquality", "fa-solid fa-wind", "Nearby air-quality readings based on your browser location.", "Utility"),
+        new("Currency Converter", "currency", "fa-solid fa-exchange-alt", "Convert between currencies with up-to-date exchange rates.", "Utility"),
+        new("Image Gallery", "gallery", "fa-solid fa-camera", "Snap photos with your webcam and browse them in a gallery.", "Media"),
+        new("Function Grapher", "graph", "fa-solid fa-chart-line", "Pick a function and a range, then plot it as an SVG graph.", "Media"),
+        new("Code Snapshot", "code-screenshot", "fa-solid fa-code", "Turn highlighted code into a crisp PNG image or copy it straight to your clipboard.", "Media"),
+        new("File Compressor", "compress", "fa-solid fa-compress", "Shrink images and PDF files in your browser — nothing is ever uploaded.", "Utility"),
+        new("Number Match", "number-match", "fa-solid fa-puzzle-piece", "Clear pairs of numbers that add up to 10 — neighbours or a clear path only.", "Game"),
+        new("Tic Tac Toe", "tic-tac-toe", "fa-solid fa-xmarks-lines", "Beat the unbeatable computer or challenge a friend on this device.", "Game"),
+        new("Counter", "counter", "fa-solid fa-plus", "A simple click counter demo.", "Utility"),
     ];
+
+    private IEnumerable<AppInfo> FilteredApps => Apps.Where(a =>
+        (selectedCategory == "All" || a.Category == selectedCategory) &&
+        (string.IsNullOrWhiteSpace(searchQuery) ||
+         a.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+         a.Description.Contains(searchQuery, StringComparison.OrdinalIgnoreCase))
+    );
+
+    private void SetCategory(string category)
+    {
+        selectedCategory = category;
+    }
+
+    private void ClearSearch()
+    {
+        searchQuery = "";
+        selectedCategory = "All";
+    }
 }

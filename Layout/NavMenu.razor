@@ -1,111 +1,95 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <NavLink class="navbar-brand" href="" Match="NavLinkMatch.All">WASM</NavLink>
-        <button title="Navigation menu"
-                class="navbar-toggler menu-toggle @(collapseNavMenu ? string.Empty : "is-open")"
-                aria-expanded="@(!collapseNavMenu ? "true" : "false")"
-                aria-controls="mobile-navigation"
-                aria-label="Toggle navigation menu"
-                @onclick="ToggleNavMenu">
-            <span aria-hidden="true"></span>
-            <span aria-hidden="true"></span>
-            <span aria-hidden="true"></span>
-        </button>
+<nav class="nav-menu-container" aria-label="Main Navigation">
+    <div class="nav-section">
+        <div class="nav-section-title">Overview</div>
+        <NavLink class="nav-menu-item" href="" Match="NavLinkMatch.All" @onclick="HandleClick">
+            <i class="fa-solid fa-house nav-icon" aria-hidden="true"></i>
+            <span>Dashboard</span>
+        </NavLink>
     </div>
-</div>
 
-<div id="mobile-navigation" class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="stopwatch">
-                <span class="fa fa-stopwatch" aria-hidden="true"></span> Stopwatch
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="color-code">
-                <span class="fa fa-palette" aria-hidden="true"></span> Color Code
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="world-clock">
-                <span class="fa fa-earth-americas" aria-hidden="true"></span> World Clock
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="calculator">
-                <span class="fa fa-calculator" aria-hidden="true"></span> Calculator
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="map">
-                <span class="fa fa-map" aria-hidden="true"></span> Map
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="airquality">
-                <span class="fa fa-wind" aria-hidden="true"></span> Air Quality
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="currency">
-                <span class="fa fa-exchange-alt" aria-hidden="true"></span> Currency
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="gallery">
-                <span class="fa fa-camera" aria-hidden="true"></span> Gallery
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="graph">
-                <span class="fa fa-chart-line" aria-hidden="true"></span> Grapher
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="code-screenshot">
-                <span class="fa fa-code" aria-hidden="true"></span> Code Snapshot
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="number-match">
-                <span class="fa fa-puzzle-piece" aria-hidden="true"></span> Number Match
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="tic-tac-toe">
-                <span class="fa fa-xmarks-lines" aria-hidden="true"></span> Tic Tac Toe
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="compress">
-                <span class="fa fa-compress" aria-hidden="true"></span> Compressor
-            </NavLink>
-        </div>
-    </nav>
-</div>
+    <div class="nav-section">
+        <div class="nav-section-title">Featured Tools</div>
+        <NavLink class="nav-menu-item" href="weather" @onclick="HandleClick">
+            <i class="fa-solid fa-cloud-sun nav-icon" aria-hidden="true"></i>
+            <span>Weather</span>
+            <span class="nav-badge badge-pop">Live</span>
+        </NavLink>
+        <NavLink class="nav-menu-item" href="stopwatch" @onclick="HandleClick">
+            <i class="fa-solid fa-stopwatch nav-icon" aria-hidden="true"></i>
+            <span>Stopwatch</span>
+        </NavLink>
+        <NavLink class="nav-menu-item" href="calculator" @onclick="HandleClick">
+            <i class="fa-solid fa-calculator nav-icon" aria-hidden="true"></i>
+            <span>Calculator</span>
+        </NavLink>
+        <NavLink class="nav-menu-item" href="code-screenshot" @onclick="HandleClick">
+            <i class="fa-solid fa-code nav-icon" aria-hidden="true"></i>
+            <span>Code Snapshot</span>
+            <span class="nav-badge badge-new">New</span>
+        </NavLink>
+        <NavLink class="nav-menu-item" href="compress" @onclick="HandleClick">
+            <i class="fa-solid fa-compress nav-icon" aria-hidden="true"></i>
+            <span>Compressor</span>
+        </NavLink>
+    </div>
+
+    <div class="nav-section">
+        <div class="nav-section-title">Utilities & Data</div>
+        <NavLink class="nav-menu-item" href="color-code" @onclick="HandleClick">
+            <i class="fa-solid fa-palette nav-icon" aria-hidden="true"></i>
+            <span>Color Code</span>
+        </NavLink>
+        <NavLink class="nav-menu-item" href="world-clock" @onclick="HandleClick">
+            <i class="fa-solid fa-earth-americas nav-icon" aria-hidden="true"></i>
+            <span>World Clock</span>
+        </NavLink>
+        <NavLink class="nav-menu-item" href="airquality" @onclick="HandleClick">
+            <i class="fa-solid fa-wind nav-icon" aria-hidden="true"></i>
+            <span>Air Quality</span>
+        </NavLink>
+        <NavLink class="nav-menu-item" href="currency" @onclick="HandleClick">
+            <i class="fa-solid fa-exchange-alt nav-icon" aria-hidden="true"></i>
+            <span>Currency</span>
+        </NavLink>
+    </div>
+
+    <div class="nav-section">
+        <div class="nav-section-title">Media & Demos</div>
+        <NavLink class="nav-menu-item" href="gallery" @onclick="HandleClick">
+            <i class="fa-solid fa-camera nav-icon" aria-hidden="true"></i>
+            <span>Gallery</span>
+        </NavLink>
+        <NavLink class="nav-menu-item" href="graph" @onclick="HandleClick">
+            <i class="fa-solid fa-chart-line nav-icon" aria-hidden="true"></i>
+            <span>Grapher</span>
+        </NavLink>
+        <NavLink class="nav-menu-item" href="map" @onclick="HandleClick">
+            <i class="fa-solid fa-map nav-icon" aria-hidden="true"></i>
+            <span>Interactive Map</span>
+        </NavLink>
+        <NavLink class="nav-menu-item" href="number-match" @onclick="HandleClick">
+            <i class="fa-solid fa-puzzle-piece nav-icon" aria-hidden="true"></i>
+            <span>Number Match</span>
+        </NavLink>
+        <NavLink class="nav-menu-item" href="tic-tac-toe" @onclick="HandleClick">
+            <i class="fa-solid fa-xmarks-lines nav-icon" aria-hidden="true"></i>
+            <span>Tic Tac Toe</span>
+        </NavLink>
+        <NavLink class="nav-menu-item" href="counter" @onclick="HandleClick">
+            <i class="fa-solid fa-plus-square nav-icon" aria-hidden="true"></i>
+            <span>Counter</span>
+        </NavLink>
+    </div>
+</nav>
 
 @code {
-    private bool collapseNavMenu = true;
+    [Parameter] public EventCallback OnNavigate { get; set; }
 
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
+    private async Task HandleClick()
     {
-        collapseNavMenu = !collapseNavMenu;
+        if (OnNavigate.HasDelegate)
+        {
+            await OnNavigate.InvokeAsync();
+        }
     }
 }
