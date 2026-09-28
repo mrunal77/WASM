@@ -1,0 +1,274 @@
+@page "/word-to-pdf"
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Word to PDF Converter — Free Client-Side DOCX to PDF — WASM Apps</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="Convert Microsoft Word (.docx) documents to PDF files 100% locally in your browser. No registration, no tracking, and no server uploads." />
+    <meta name="keywords" content="word to pdf converter, docx to pdf, free word to pdf, client side pdf converter, convert docx online, privacy word converter" />
+    <link rel="canonical" href="https://mrunal77.github.io/WASM/word-to-pdf" />
+    <meta property="og:title" content="Word to PDF Converter — Free Client-Side DOCX to PDF — WASM Apps" />
+    <meta property="og:description" content="Convert Microsoft Word (.docx) documents to PDF files 100% locally in your browser." />
+    <meta property="og:url" content="https://mrunal77.github.io/WASM/word-to-pdf" />
+</HeadContent>
+
+<div class="container-fluid py-2">
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h1 class="h2 font-weight-bold">Word to PDF Converter</h1>
+            <p class="text-secondary">Convert Microsoft Word (.docx) files to high-quality PDF documents 100% inside your browser.</p>
+        </div>
+    </div>
+
+    <!-- Hidden file input element -->
+    <input type="file" @ref="fileInputRef" accept=".docx,.doc" class="d-none" />
+
+    @if (selectedFile == null)
+    {
+        <!-- Upload Dropzone -->
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-7">
+                <div class="w2p-dropzone" @ref="dropzoneRef" @onclick="TriggerFilePicker">
+                    <div class="dropzone-icon mb-3">
+                        <i class="fa-solid fa-file-word"></i>
+                    </div>
+                    <h3 class="h5 font-weight-bold mb-2">Drop your Word (.docx) file here</h3>
+                    <p class="text-secondary small mb-3">or click to browse from your device</p>
+                    <span class="badge-tech"><i class="fa-solid fa-shield-halved me-1"></i> 100% Client-Side — Files Never Leave Your Browser</span>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <!-- Sidebar Controls -->
+            <div class="col-12 col-lg-4">
+                <div class="card p-3 shadow-sm mb-3">
+                    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa-solid fa-file-word text-primary fs-4"></i>
+                            <div>
+                                <h6 class="mb-0 text-truncate" style="max-width: 180px;">@selectedFile.Name</h6>
+                                <small class="text-secondary">@FormatFileSize(selectedFile.Size)</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="ResetFile" title="Remove File">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+
+                    <h6 class="fw-bold mb-3"><i class="fa-solid fa-sliders me-1"></i> PDF Export Options</h6>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Page Format</label>
+                        <select class="form-select form-select-sm" @bind="pageSize">
+                            <option value="a4">A4 (Standard)</option>
+                            <option value="letter">US Letter</option>
+                            <option value="legal">Legal</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Orientation</label>
+                        <select class="form-select form-select-sm" @bind="orientation">
+                            <option value="portrait">Portrait</option>
+                            <option value="landscape">Landscape</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Margin (mm)</label>
+                        <select class="form-select form-select-sm" @bind="margin">
+                            <option value="10">Normal (10 mm)</option>
+                            <option value="5">Compact (5 mm)</option>
+                            <option value="15">Wide (15 mm)</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary w-100 py-2 mt-2" @onclick="ExportToPdf" disabled="@isConverting">
+                        @if (isConverting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Exporting PDF...</span>
+                        }
+                        else
+                        {
+                            <i class="fa-solid fa-file-pdf me-2"></i>
+                            <span>Convert & Download PDF</span>
+                        }
+                    </button>
+
+                    @if (!string.IsNullOrEmpty(statusMessage))
+                    {
+                        <div class="alert @(isError ? "alert-danger" : "alert-success") mt-3 small p-2 mb-0" role="alert">
+                            @statusMessage
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Main Document Preview Area -->
+            <div class="col-12 col-lg-8">
+                <div class="card p-4 shadow-sm">
+                    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                        <h6 class="fw-bold mb-0"><i class="fa-solid fa-eye me-1"></i> Document Preview</h6>
+                        <span class="badge bg-secondary small">Live Render</span>
+                    </div>
+
+                    @if (isLoadingPreview)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary mb-3" role="status"></div>
+                            <p class="text-secondary">Parsing DOCX structure & styles...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="w2p-document-container" @ref="previewContainerRef">
+                            @((MarkupString)renderedHtml)
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private ElementReference fileInputRef;
+    private ElementReference dropzoneRef;
+    private ElementReference previewContainerRef;
+    private DotNetObjectReference<WordToPdf>? dotNetRef;
+
+    private SelectedFileInfo? selectedFile;
+    private string renderedHtml = "";
+    private bool isLoadingPreview = false;
+    private bool isConverting = false;
+    private string statusMessage = "";
+    private bool isError = false;
+
+    private string pageSize = "a4";
+    private string orientation = "portrait";
+    private int margin = 10;
+
+    public class SelectedFileInfo
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public long Size { get; set; }
+        public string Type { get; set; } = "";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("wasmWordToPdf.attach", fileInputRef, dropzoneRef, dotNetRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task FileSelected(SelectedFileInfo file)
+    {
+        selectedFile = file;
+        renderedHtml = "";
+        statusMessage = "";
+        isError = false;
+        isLoadingPreview = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await JS.InvokeAsync<ConversionResult>("wasmWordToPdf.convertDocxToHtml", file.Id);
+            renderedHtml = result.Html;
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            statusMessage = "Error parsing DOCX file: " + ex.Message;
+        }
+        finally
+        {
+            isLoadingPreview = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task TriggerFilePicker()
+    {
+        await JS.InvokeVoidAsync("wasmWordToPdf.openPicker");
+    }
+
+    private async Task ExportToPdf()
+    {
+        if (selectedFile == null) return;
+
+        isConverting = true;
+        statusMessage = "";
+        isError = false;
+        StateHasChanged();
+
+        try
+        {
+            string pdfFilename = System.IO.Path.ChangeExtension(selectedFile.Name, ".pdf");
+            if (string.IsNullOrWhiteSpace(pdfFilename)) pdfFilename = "document.pdf";
+
+            var options = new
+            {
+                pageSize = pageSize,
+                orientation = orientation,
+                margin = margin
+            };
+
+            await JS.InvokeVoidAsync("wasmWordToPdf.generatePdfFromElement", previewContainerRef, pdfFilename, options);
+            statusMessage = "PDF generated and downloaded successfully!";
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            statusMessage = "Failed to export PDF: " + ex.Message;
+        }
+        finally
+        {
+            isConverting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetFile()
+    {
+        selectedFile = null;
+        renderedHtml = "";
+        statusMessage = "";
+        isError = false;
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return (bytes / 1024.0).ToString("F1") + " KB";
+        return (bytes / (1024.0 * 1024.0)).ToString("F1") + " MB";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (dotNetRef != null)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("wasmWordToPdf.detach");
+            }
+            catch { }
+            dotNetRef.Dispose();
+        }
+    }
+
+    public class ConversionResult
+    {
+        public string Html { get; set; } = "";
+        public string[] Messages { get; set; } = Array.Empty<string>();
+    }
+}

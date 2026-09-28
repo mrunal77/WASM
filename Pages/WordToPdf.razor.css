@@ -1,0 +1,65 @@
+.w2p-dropzone {
+    border: 2px dashed var(--border-color);
+    border-radius: 1.25rem;
+    padding: 3.5rem 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+    background: var(--bg-card);
+    backdrop-filter: var(--glass-backdrop);
+    transition: all 0.25s ease;
+    cursor: pointer;
+}
+
+.w2p-dropzone:hover,
+.w2p-dropzone.w2p-drag-over {
+    border-color: var(--accent-primary);
+    background: var(--accent-light);
+    color: var(--text-primary);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.dropzone-icon {
+    font-size: 3.5rem;
+    color: var(--accent-primary);
+}
+
+.w2p-document-container {
+    background-color: #ffffff;
+    color: #1a1a1a;
+    padding: 2.5rem;
+    min-height: 500px;
+    max-height: 700px;
+    overflow-y: auto;
+    border-radius: 0.5rem;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
+    font-family: 'Times New Roman', Times, serif, var(--font-primary);
+    line-height: 1.6;
+}
+
+.w2p-document-container h1,
+.w2p-document-container h2,
+.w2p-document-container h3,
+.w2p-document-container h4 {
+    color: #111827;
+    margin-top: 1.2rem;
+    margin-bottom: 0.6rem;
+}
+
+.w2p-document-container img {
+    max-width: 100%;
+    height: auto;
+}
+
+.w2p-document-container table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+.w2p-document-container table,
+.w2p-document-container th,
+.w2p-document-container td {
+    border: 1px solid #d1d5db;
+    padding: 0.5rem;
+}

@@ -1,4 +1,4 @@
-﻿# WASM Multi-App
+# WASM Multi-App
 
 Live demo: https://mrunal77.github.io/WASM/
 
@@ -18,6 +18,7 @@ This repository contains a Blazor WebAssembly app with multiple built-in utiliti
 - **Function Grapher** — simple function plotter built in SVG.
 - **Code Snapshot** — code-to-image generator: syntax-highlighted code cards with 23 languages and 9 themes, downloadable as PNG or copyable as an image/code.
 - **File Compressor** — client-side image and PDF compression with a quality slider, resize, format conversion, and PDF metadata stripping. Files never leave the browser.
+- **Word to PDF** — client-side Microsoft Word (.docx) to PDF converter with live preview, page format, orientation, and margin options. 100% private in-browser execution.
 
 ## Screenshots
 

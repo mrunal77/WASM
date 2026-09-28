@@ -1,15 +1,15 @@
 @page "/"
 
-<PageTitle>WASM Apps — 15 Free WebAssembly Tools in Your Browser</PageTitle>
+<PageTitle>WASM Apps — 16 Free WebAssembly Tools in Your Browser</PageTitle>
 
 <HeadContent>
-    <meta name="description" content="WASM Apps is a suite of 15 free, privacy-first online tools running 100% in your browser: weather forecast, stopwatch, color converter, world clock, calculator, file compressor, code screenshot generator, and games." />
-    <meta name="keywords" content="webassembly apps, blazor wasm, online calculator, weather forecast, file compressor, code snapshot, world clock, color picker, number match game, privacy first tools" />
+    <meta name="description" content="WASM Apps is a suite of 16 free, privacy-first online tools running 100% in your browser: Word to PDF converter, weather forecast, stopwatch, color converter, world clock, calculator, file compressor, code screenshot generator, and games." />
+    <meta name="keywords" content="webassembly apps, blazor wasm, word to pdf, online calculator, weather forecast, file compressor, code snapshot, world clock, color picker, number match game, privacy first tools" />
     <link rel="canonical" href="https://mrunal77.github.io/WASM/" />
-    <meta property="og:title" content="WASM Apps — 15 Free WebAssembly Tools in Your Browser" />
+    <meta property="og:title" content="WASM Apps — 16 Free WebAssembly Tools in Your Browser" />
     <meta property="og:description" content="Lightning-fast online utilities running directly inside your browser. No sign-ups, no tracking, zero server uploads." />
     <meta property="og:url" content="https://mrunal77.github.io/WASM/" />
-    <meta name="twitter:title" content="WASM Apps — 15 Free WebAssembly Tools in Your Browser" />
+    <meta name="twitter:title" content="WASM Apps — 16 Free WebAssembly Tools in Your Browser" />
     <meta name="twitter:description" content="Lightning-fast online utilities running directly inside your browser. No sign-ups, no tracking, zero server uploads." />
 </HeadContent>
 
@@ -17,7 +17,7 @@
     <div class="hero-badge mb-3">
         <i class="fa-solid fa-bolt text-warning me-1"></i> Powered by Blazor WebAssembly .NET 10
     </div>
-    <h1 class="hero-title">15 Powerful Web Tools.<br /><span class="gradient-text">100% Client-Side.</span></h1>
+    <h1 class="hero-title">16 Powerful Web Tools.<br /><span class="gradient-text">100% Client-Side.</span></h1>
     <p class="hero-subtitle mx-auto">
         Lightning-fast online utilities running directly inside your browser. No sign-ups, no tracking, and zero server uploads.
     </p>
@@ -53,7 +53,7 @@
         <div class="col-12 col-md-5">
             <div class="search-box position-relative">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                <input type="text" class="form-control search-input" placeholder="Search tools (e.g. Weather, Calculator)..." @bind="searchQuery" @bind:event="oninput" />
+                <input type="text" class="form-control search-input" placeholder="Search tools (e.g. Word to PDF, Weather)..." @bind="searchQuery" @bind:event="oninput" />
                 @if (!string.IsNullOrWhiteSpace(searchQuery))
                 {
                     <button class="btn-clear" @onclick="ClearSearch" title="Clear search">
@@ -110,6 +110,7 @@ else
 
     private static readonly AppInfo[] Apps =
     [
+        new("Word to PDF", "word-to-pdf", "fa-solid fa-file-word", "Convert Microsoft Word (.docx) documents to PDF files locally in your browser.", "Utility"),
         new("Weather Forecast", "weather", "fa-solid fa-cloud-sun", "Live weather data from Open-Meteo — uses your location or a city search.", "Utility"),
         new("Stopwatch", "stopwatch", "fa-solid fa-stopwatch", "A precise stopwatch with pause, resume, lap timing, and reset controls.", "Utility"),
         new("Color Code", "color-code", "fa-solid fa-palette", "Pick a color and copy its HEX, RGB, HSL, or HSV code with contrast guidance.", "Media"),
