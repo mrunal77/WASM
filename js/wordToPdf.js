@@ -114,23 +114,18 @@ window.wasmWordToPdf = (function () {
             throw new Error('Document container is missing.');
         }
 
-        // Clone the document container to an unconstrained off-screen element so that
-        // scrollbars, max-height, and overflow clipping do NOT cut off any document content.
-        const clone = containerEl.cloneNode(true);
-        clone.style.maxHeight = 'none';
-        clone.style.height = 'auto';
-        clone.style.overflow = 'visible';
-        clone.style.position = 'absolute';
-        clone.style.left = '-9999px';
-        clone.style.top = '0px';
-        clone.style.width = '794px'; // Standard A4 width in px at 96 DPI
-        clone.style.padding = '20px';
-        clone.style.backgroundColor = '#ffffff';
-        clone.style.color = '#1a1a1a';
-        document.body.appendChild(clone);
+        // Save original scroll styles before expanding for canvas capture
+        const origMaxHeight = containerEl.style.maxHeight;
+        const origOverflow = containerEl.style.overflow;
+        const origHeight = containerEl.style.height;
 
         try {
-            await waitForImages(clone);
+            // Temporarily unconstrain container height so html2canvas captures full document content
+            containerEl.style.maxHeight = 'none';
+            containerEl.style.height = 'auto';
+            containerEl.style.overflow = 'visible';
+
+            await waitForImages(containerEl);
 
             const opt = {
                 margin: Number(options.margin || 10),
@@ -140,7 +135,6 @@ window.wasmWordToPdf = (function () {
                     scale: 2,
                     useCORS: true,
                     logging: false,
-                    windowWidth: 794,
                     scrollY: 0,
                     scrollX: 0
                 },
@@ -152,11 +146,12 @@ window.wasmWordToPdf = (function () {
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
-            await html2pdf().set(opt).from(clone).save();
+            await html2pdf().set(opt).from(containerEl).save();
         } finally {
-            if (document.body.contains(clone)) {
-                document.body.removeChild(clone);
-            }
+            // Restore preview styling
+            containerEl.style.maxHeight = origMaxHeight;
+            containerEl.style.overflow = origOverflow;
+            containerEl.style.height = origHeight;
         }
     }
 
