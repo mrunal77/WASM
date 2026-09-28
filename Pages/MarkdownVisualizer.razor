@@ -1,0 +1,360 @@
+@page "/markdown-visualizer"
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Markdown (.md) Visualizer & Real-time GFM Editor — WASM Apps</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="Free online Markdown (.md) visualizer and live editor. Render GitHub Flavored Markdown, code syntax highlighting, tables, and export to HTML or MD." />
+    <meta name="keywords" content="markdown visualizer, markdown viewer, md file editor, live gfm preview, markdown to html, online markdown reader" />
+    <link rel="canonical" href="https://mrunal77.github.io/WASM/markdown-visualizer" />
+    <meta property="og:title" content="Markdown (.md) Visualizer & Real-time GFM Editor — WASM Apps" />
+    <meta property="og:description" content="Free online Markdown (.md) visualizer and live editor with GFM rendering and syntax highlighting." />
+    <meta property="og:url" content="https://mrunal77.github.io/WASM/markdown-visualizer" />
+</HeadContent>
+
+<div class="container-fluid py-2">
+    <!-- Page Header -->
+    <div class="row mb-3 align-items-center">
+        <div class="col-12 col-md-6">
+            <h1 class="h3 font-weight-bold mb-1">Markdown (.md) Visualizer</h1>
+            <p class="text-secondary small mb-0">Load, edit, and render GitHub Flavored Markdown (.md) files with live syntax highlighting.</p>
+        </div>
+        <div class="col-12 col-md-6 text-md-end mt-2 mt-md-0">
+            <div class="btn-group btn-group-sm" role="group" aria-label="View Modes">
+                <button type="button" class="btn @(viewMode == "split" ? "btn-primary" : "btn-outline-primary")" @onclick='() => SetViewMode("split")'>
+                    <i class="fa-solid fa-columns me-1"></i> Split View
+                </button>
+                <button type="button" class="btn @(viewMode == "editor" ? "btn-primary" : "btn-outline-primary")" @onclick='() => SetViewMode("editor")'>
+                    <i class="fa-solid fa-code me-1"></i> Editor Only
+                </button>
+                <button type="button" class="btn @(viewMode == "preview" ? "btn-primary" : "btn-outline-primary")" @onclick='() => SetViewMode("preview")'>
+                    <i class="fa-solid fa-eye me-1"></i> Preview Only
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for file upload -->
+    <input type="file" @ref="fileInputRef" accept=".md,.markdown,.txt" class="d-none" />
+
+    <!-- Action Toolbar -->
+    <div class="card p-2 shadow-sm mb-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <button class="btn btn-sm btn-outline-primary" @onclick="TriggerFilePicker" title="Open .md file from computer">
+                    <i class="fa-solid fa-file-arrow-up me-1"></i> Open .md File
+                </button>
+
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="templateDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fa-solid fa-file-lines me-1"></i> Load Template
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-dark shadow" aria-labelledby="templateDropdown">
+                        <li><a class="dropdown-item" href="javascript:void(0)" @onclick='() => LoadTemplate("readme")'>Project Readme</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0)" @onclick='() => LoadTemplate("spec")'>Technical Specification</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0)" @onclick='() => LoadTemplate("release")'>Release Notes</a></li>
+                    </ul>
+                </div>
+
+                <button class="btn btn-sm btn-outline-danger" @onclick="ClearContent" title="Clear editor content">
+                    <i class="fa-solid fa-trash me-1"></i> Clear
+                </button>
+            </div>
+
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <span class="badge bg-secondary small">
+                    <i class="fa-solid fa-font me-1"></i> @WordCount words &bull; @CharCount chars &bull; @LineCount lines
+                </span>
+
+                <button class="btn btn-sm btn-outline-success" @onclick="CopyHtml" title="Copy rendered HTML">
+                    <i class="fa-solid @(copiedHtml ? "fa-check" : "fa-copy") me-1"></i> @(copiedHtml ? "Copied HTML!" : "Copy HTML")
+                </button>
+
+                <button class="btn btn-sm btn-outline-info" @onclick="DownloadHtml" title="Download as .html file">
+                    <i class="fa-solid fa-download me-1"></i> HTML
+                </button>
+
+                <button class="btn btn-sm btn-outline-warning" @onclick="DownloadMarkdown" title="Download as .md file">
+                    <i class="fa-solid fa-file-code me-1"></i> Export .md
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="row g-3">
+        <!-- Editor Panel -->
+        @if (viewMode == "split" || viewMode == "editor")
+        {
+            <div class="@(viewMode == "split" ? "col-12 col-lg-6" : "col-12")">
+                <div class="card p-3 shadow-sm h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="fw-bold mb-0 text-secondary"><i class="fa-solid fa-pen-to-square me-1"></i> Markdown Input</h6>
+                        <span class="small text-muted">GFM Syntax</span>
+                    </div>
+                    <textarea class="form-control mdv-editor flex-grow-1"
+                              placeholder="Type or paste Markdown here..."
+                              @bind="markdownContent"
+                              @bind:event="oninput">
+                    </textarea>
+                </div>
+            </div>
+        }
+
+        <!-- Preview Panel -->
+        @if (viewMode == "split" || viewMode == "preview")
+        {
+            <div class="@(viewMode == "split" ? "col-12 col-lg-6" : "col-12")">
+                <div class="card p-3 shadow-sm h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                        <h6 class="fw-bold mb-0 text-secondary"><i class="fa-solid fa-eye me-1"></i> Live Rendered Preview</h6>
+                        <span class="badge bg-success small">HTML Preview</span>
+                    </div>
+                    <div class="mdv-preview-sheet flex-grow-1" @ref="previewRef">
+                        @((MarkupString)renderedHtml)
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private ElementReference fileInputRef;
+    private ElementReference previewRef;
+    private DotNetObjectReference<MarkdownVisualizer>? dotNetRef;
+
+    private string markdownContent = SampleReadme;
+    private string renderedHtml = "";
+    private string viewMode = "split";
+    private bool copiedHtml = false;
+
+    private int WordCount => string.IsNullOrWhiteSpace(markdownContent) ? 0 : markdownContent.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+    private int CharCount => markdownContent?.Length ?? 0;
+    private int LineCount => string.IsNullOrEmpty(markdownContent) ? 0 : markdownContent.Split('\n').Length;
+
+    public class FileLoadedPayload
+    {
+        public string Name { get; set; } = "";
+        public long Size { get; set; }
+        public string Content { get; set; } = "";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await UpdatePreview();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("wasmMarkdownVisualizer.attachDropzone", fileInputRef, null, dotNetRef);
+        }
+
+        // Apply syntax highlighting to code blocks after render
+        try
+        {
+            await JS.InvokeVoidAsync("wasmMarkdownVisualizer.highlightCodeBlocks", previewRef);
+        }
+        catch { }
+    }
+
+    private async Task UpdatePreview()
+    {
+        try
+        {
+            renderedHtml = await JS.InvokeAsync<string>("wasmMarkdownVisualizer.parseMarkdown", markdownContent);
+        }
+        catch (Exception ex)
+        {
+            renderedHtml = "<p class=\"text-danger\">Error rendering Markdown: " + ex.Message + "</p>";
+        }
+    }
+
+    private string MarkdownContent
+    {
+        get => markdownContent;
+        set
+        {
+            if (markdownContent != value)
+            {
+                markdownContent = value;
+                _ = UpdatePreview();
+            }
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await UpdatePreview();
+    }
+
+    [JSInvokable]
+    public async Task FileLoaded(FileLoadedPayload payload)
+    {
+        markdownContent = payload.Content;
+        await UpdatePreview();
+        StateHasChanged();
+    }
+
+    private async Task TriggerFilePicker()
+    {
+        await JS.InvokeVoidAsync("wasmMarkdownVisualizer.openPicker");
+    }
+
+    private void SetViewMode(string mode)
+    {
+        viewMode = mode;
+    }
+
+    private async Task CopyHtml()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", renderedHtml);
+            copiedHtml = true;
+            StateHasChanged();
+            await Task.Delay(2000);
+            copiedHtml = false;
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private async Task DownloadHtml()
+    {
+        string fullHtml = $@"<!DOCTYPE html>
+<html lang=""en"">
+<head>
+<meta charset=""utf-8"">
+<title>Rendered Document</title>
+<style>
+body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 850px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; }}
+pre {{ background: #f3f4f6; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }}
+code {{ font-family: monospace; }}
+table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; }}
+th, td {{ border: 1px solid #e5e7eb; padding: 0.5rem; text-align: left; }}
+blockquote {{ border-left: 4px solid #6366f1; padding-left: 1rem; margin-left: 0; color: #4b5563; }}
+</style>
+</head>
+<body>
+{renderedHtml}
+</body>
+</html>";
+
+        await JS.InvokeVoidAsync("wasmMarkdownVisualizer.downloadFile", fullHtml, "document.html", "text/html");
+    }
+
+    private async Task DownloadMarkdown()
+    {
+        await JS.InvokeVoidAsync("wasmMarkdownVisualizer.downloadFile", markdownContent, "document.md", "text/markdown");
+    }
+
+    private async Task ClearContent()
+    {
+        markdownContent = "";
+        await UpdatePreview();
+    }
+
+    private async Task LoadTemplate(string templateName)
+    {
+        markdownContent = templateName switch
+        {
+            "readme" => SampleReadme,
+            "spec" => SampleSpec,
+            "release" => SampleRelease,
+            _ => SampleReadme
+        };
+        await UpdatePreview();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (dotNetRef != null)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("wasmMarkdownVisualizer.detachDropzone");
+            }
+            catch { }
+            dotNetRef.Dispose();
+        }
+    }
+
+    private static readonly string SampleReadme = """
+# 🚀 WebAssembly Multi-Tool Suite
+
+Welcome to the **WASM Apps** project! A high-performance collection of client-side web utilities built with **Blazor WebAssembly** and **.NET 10**.
+
+## ✨ Key Features
+
+- ⚡ **100% Client-Side**: All file processing happens locally in your browser.
+- 🔒 **Zero Data Uploads**: Your privacy is completely protected.
+- 🌙 **Dark & Light Mode**: Seamless dynamic theme switching.
+- 📱 **Responsive Design**: Full mobile and desktop drawer navigation.
+
+---
+
+## 🛠️ Built-in Utilities
+
+| Tool Name | Description | Category |
+| :--- | :--- | :--- |
+| **Word to PDF** | Convert `.docx` files into PDF format | Utility |
+| **Code Snapshot** | Create code images with themes | Media |
+| **File Compressor** | Shrink images and PDF documents | Utility |
+| **Weather Forecast** | Real-time weather via Open-Meteo | Utility |
+
+---
+
+## 💡 Code Example
+
+```javascript
+function greetUser(name) {
+    console.log(`Hello, ${name}! Welcome to WASM Apps.`);
+}
+greetUser('Developer');
+```
+
+> *"Privacy means people know what they're signing up for, in plain English and repeatedly."* — Steve Jobs
+""";
+
+    private static readonly string SampleSpec = """
+# 📐 Technical Specification: Client-Side Engine
+
+## 1. Overview
+This system provides high-performance, zero-latency browser computation using compiled **WebAssembly** binaries.
+
+### Architectural Goals
+1. Maintain total user data privacy.
+2. Eliminate backend server processing costs.
+3. Support offline execution via Web Workers.
+
+---
+
+## 2. API Data Flow
+
+```json
+{
+  "status": 200,
+  "engine": "Blazor WebAssembly .NET 10",
+  "features": ["OpenXML Parsing", "PDF Rendering", "GFM Markdown"]
+}
+```
+""";
+
+    private static readonly string SampleRelease = """
+# 📦 Release Notes — v2.0.0
+
+### 🎉 New Features
+- Added **Markdown (.md) Visualizer** with live GFM parsing and export capabilities.
+- Added **Word to PDF Converter** using client-side OpenXML processing.
+- Introduced full **Light & Dark Mode** design system.
+
+### 🐛 Bug Fixes
+- Improved mobile navigation drawer responsiveness.
+- Fixed scrollbar color consistency in dark mode.
+""";
+}
