@@ -33,7 +33,29 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <meta name="color-scheme" content="dark light">
+    <script>
+        (function() {
+            try {
+                var savedTheme = localStorage.getItem('wasm-app-theme');
+                var theme = savedTheme || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {}
+        })();
+        window.wasmTheme = {
+            get: function() {
+                return document.documentElement.getAttribute('data-theme') || 'dark';
+            },
+            toggle: function() {
+                var current = this.get();
+                var next = current === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                try { localStorage.setItem('wasm-app-theme', next); } catch(e) {}
+                return next;
+            }
+        };
+    </script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -51,17 +73,39 @@
                 "@type": "WebSite",
                 "name": "WASM Apps",
                 "url": "https://mrunal77.github.io/WASM/",
-                "description": "Free collection of online tools that run entirely in your browser: weather forecast, calculator, stopwatch, world clock, number match game, currency converter, file compressor and more.",
+                "description": "Free privacy-first suite of WebAssembly online utilities running 100% in your browser.",
                 "author": { "@type": "Person", "name": "mrunal77" }
             },
             {
                 "@type": "WebApplication",
                 "name": "WASM Apps",
                 "url": "https://mrunal77.github.io/WASM/",
-                "applicationCategory": "BrowserApplication",
-                "operatingSystem": "Any",
-                "browserRequirements": "Requires JavaScript and WebAssembly",
-                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+                "applicationCategory": "UtilitiesApplication",
+                "operatingSystem": "All modern browsers (Chrome, Firefox, Safari, Edge)",
+                "browserRequirements": "Requires WebAssembly and JavaScript",
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+                "featureList": "Weather Forecast, Stopwatch, Color Code Converter, World Clock, Calculator, Interactive Map, Air Quality Meter, Currency Converter, Image Gallery, Function Grapher, Code Snapshot Generator, File Compressor, Number Match Game, Tic Tac Toe, Counter"
+            },
+            {
+                "@type": "ItemList",
+                "name": "WASM Apps Tools Collection",
+                "itemListElement": [
+                    { "@type": "ListItem", "position": 1, "name": "Weather Forecast", "url": "https://mrunal77.github.io/WASM/weather" },
+                    { "@type": "ListItem", "position": 2, "name": "Stopwatch", "url": "https://mrunal77.github.io/WASM/stopwatch" },
+                    { "@type": "ListItem", "position": 3, "name": "Color Code", "url": "https://mrunal77.github.io/WASM/color-code" },
+                    { "@type": "ListItem", "position": 4, "name": "World Clock", "url": "https://mrunal77.github.io/WASM/world-clock" },
+                    { "@type": "ListItem", "position": 5, "name": "Scientific Calculator", "url": "https://mrunal77.github.io/WASM/calculator" },
+                    { "@type": "ListItem", "position": 6, "name": "Interactive Map", "url": "https://mrunal77.github.io/WASM/map" },
+                    { "@type": "ListItem", "position": 7, "name": "Air Quality Readings", "url": "https://mrunal77.github.io/WASM/airquality" },
+                    { "@type": "ListItem", "position": 8, "name": "Currency Converter", "url": "https://mrunal77.github.io/WASM/currency" },
+                    { "@type": "ListItem", "position": 9, "name": "Image Gallery", "url": "https://mrunal77.github.io/WASM/gallery" },
+                    { "@type": "ListItem", "position": 10, "name": "Function Grapher", "url": "https://mrunal77.github.io/WASM/graph" },
+                    { "@type": "ListItem", "position": 11, "name": "Code Snapshot Generator", "url": "https://mrunal77.github.io/WASM/code-screenshot" },
+                    { "@type": "ListItem", "position": 12, "name": "File Compressor", "url": "https://mrunal77.github.io/WASM/compress" },
+                    { "@type": "ListItem", "position": 13, "name": "Number Match Game", "url": "https://mrunal77.github.io/WASM/number-match" },
+                    { "@type": "ListItem", "position": 14, "name": "Tic Tac Toe", "url": "https://mrunal77.github.io/WASM/tic-tac-toe" },
+                    { "@type": "ListItem", "position": 15, "name": "Counter", "url": "https://mrunal77.github.io/WASM/counter" }
+                ]
             }
         ]
     }
